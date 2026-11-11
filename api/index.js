@@ -740,3 +740,37 @@ app.delete("/api/admin/coupons/:id", requireAdmin, async (req, res) => {
 app.post("/api/verify-coupon", async (req, res) => {
   try {
     const { code, originalAmount } = req.body;
+    if (!code || !originalAmount) return res.status(400).json({ success: false, message: "الكود والمبلغ مطلوبان" });
+
+    const snap = await getCouponsCollection().where("code", "==", code.toUpperCase()).where("isActive", "==", true).limit(1).get();
+    if (snap.empty) return res.status(404).json({ success: false, message: "الكوبون غير صالح أو منتهي الصلاحية" });
+
+    const couponDoc = snap.docs[0];
+    const coupon = { id: couponDoc.id, ...couponDoc.data() };
+    if (coupon.expiresAt && coupon.expiresAt.toDate && coupon.expiresAt.toDate() < new Date()) {
+      return res.status(400).json({ success: false, message: "انتهت صلاحية الكوبون" });
+    }
+
+    const discount = (Number(originalAmount) * coupon.discountPercent) / 100;
+    const newAmount = Number(originalAmount) - discount;
+    res.json({ success: true, discount: discount.toFixed(2), newTotal: newAmount.toFixed(2), discountPercent: coupon.discountPercent, couponCode: coupon.code });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.post("/api/use-coupon", async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ success: false });
+    const snap = await getCouponsCollection().where("code", "==", code.toUpperCase()).limit(1).get();
+    if (!snap.empty) await snap.docs[0].ref.update({ usedCount: admin.firestore.FieldValue.increment(1) });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.json({ success: false });
+  }
+});
+
+module.exports = app;
