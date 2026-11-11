@@ -1522,10 +1522,14 @@
             <label><i class="fas fa-user"></i> الاسم داخل اللعبة</label>
             <input type="text" id="name" placeholder="اسمك في اللعبة" required>
           </div>
+          
           <div class="field">
             <label><i class="fas fa-id-card"></i> ID اللاعب</label>
             <input type="text" id="playerId" placeholder="Player ID" required>
+            <!-- الجزء الجديد الخاص بعرض اسم اللاعب -->
+            <div id="playerNameDisplay" style="margin-top: 8px; font-size: 0.85rem; min-height: 20px; font-weight: bold;"></div>
           </div>
+
           <div class="field">
             <label><i class="fas fa-envelope"></i> البريد الإلكتروني</label>
             <input type="email" id="email" placeholder="للتواصل عند الحاجة" required>
@@ -1800,6 +1804,38 @@
         btn.disabled = false; btn.textContent = 'تطبيق';
       }
     }
+
+    // ====== كود البحث التلقائي عن ID اللاعب ======
+    let lookupTimeout;
+    document.getElementById('playerId').addEventListener('input', function(e) {
+      const uid = e.target.value.trim();
+      const display = document.getElementById('playerNameDisplay');
+      
+      // إلغاء أي طلب قديم لو المستخدم لسه بيكتب
+      clearTimeout(lookupTimeout);
+      display.innerHTML = '';
+      
+      // لو الحقل فاضي أو مش أرقام، متعملش حاجة
+      if (!uid || isNaN(uid)) return; 
+      
+      // الانتظار 500 مللي ثانية بعد توقف الكتابة (Debounce)
+      lookupTimeout = setTimeout(async () => {
+        display.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px;margin-left:5px;display:inline-block;vertical-align:middle;border-top-color:var(--primary);"></span> <span style="color:var(--text-dim);">جاري البحث...</span>';
+        
+        try {
+          const res = await fetch(`/api/lookup-player/${uid}`);
+          const data = await res.json();
+          
+          if (data.success) {
+            display.innerHTML = `<span style="color: var(--green);"><i class="fas fa-check-circle"></i> ${data.name}</span>`;
+          } else {
+            display.innerHTML = `<span style="color: var(--red);"><i class="fas fa-times-circle"></i> ${data.message}</span>`;
+          }
+        } catch (err) {
+          display.innerHTML = `<span style="color: var(--red);"><i class="fas fa-times-circle"></i> خطأ في الاتصال</span>`;
+        }
+      }, 500); 
+    });
 
     document.getElementById('orderForm').addEventListener('submit', async (e) => {
       e.preventDefault();
