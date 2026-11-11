@@ -1032,14 +1032,20 @@
         </div>
 
         <form id="orderForm">
+          
+          <!-- تعديل 1: حقل الاسم أصبح للقراءة فقط (readonly) -->
           <div class="field">
             <label>الاسم داخل اللعبة</label>
-            <input type="text" id="name" placeholder="اسمك في اللعبة" required>
+            <input type="text" id="name" placeholder="سيتم جلب الاسم تلقائياً..." required readonly style="opacity: 0.8; cursor: not-allowed;">
           </div>
+          
           <div class="field">
             <label>ID اللاعب</label>
             <input type="text" id="playerId" placeholder="Player ID" required>
+            <!-- الجزء الخاص بعرض علامة التحميل أو الصح/الخطأ جنب الـ ID -->
+            <div id="playerNameDisplay" style="margin-top: 8px; font-size: 0.85rem; min-height: 20px; font-weight: bold;"></div>
           </div>
+          
           <div class="field">
             <label>البريد الإلكتروني</label>
             <input type="email" id="email" placeholder="للتواصل عند الحاجة" required>
@@ -1320,6 +1326,52 @@
         btn.disabled = false; btn.textContent = 'تطبيق';
       }
     }
+
+    // ====== تعديل 2: كود البحث التلقائي وتعبئة حقل الاسم ======
+    let lookupTimeout;
+    const playerIdInput = document.getElementById('playerId');
+    const playerNameInput = document.getElementById('name');
+    const nameDisplay = document.getElementById('playerNameDisplay');
+
+    playerIdInput.addEventListener('input', function(e) {
+      const uid = e.target.value.trim();
+      
+      // إلغاء أي طلب قديم لو المستخدم لسه بيكتب
+      clearTimeout(lookupTimeout);
+      nameDisplay.innerHTML = '';
+      
+      // لو الحقل فاضي أو مش أرقام، نفضي خانة الاسم
+      if (!uid || isNaN(uid)) {
+        playerNameInput.value = ''; 
+        return; 
+      }
+      
+      // الانتظار 500 مللي ثانية بعد توقف الكتابة (Debounce)
+      lookupTimeout = setTimeout(async () => {
+        // نظهر علامة التحميل جنب حقل الـ ID ونكتب في خانة الاسم
+        nameDisplay.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px;margin-left:5px;display:inline-block;vertical-align:middle;border-top-color:var(--gold);"></span>';
+        playerNameInput.value = 'جاري البحث...';
+        
+        try {
+          const res = await fetch(`/api/lookup-player/${uid}`);
+          const data = await res.json();
+          
+          if (data.success) {
+            // نكتب الاسم جوه حقل الاسم
+            playerNameInput.value = data.name;
+            // نعرض علامة صح خضراء جنب الـ ID
+            nameDisplay.innerHTML = `<i class="fas fa-check-circle" style="color: var(--green); margin-left: 5px;"></i>`;
+          } else {
+            // في حالة الخطأ نفضي الاسم ونظهر رسالة حمراء
+            playerNameInput.value = 'ID غير صحيح';
+            nameDisplay.innerHTML = `<i class="fas fa-times-circle" style="color: var(--red); margin-left: 5px;"></i> <span style="color:var(--red);font-size:0.8rem;">${data.message}</span>`;
+          }
+        } catch (err) {
+          playerNameInput.value = 'خطأ في الاتصال';
+          nameDisplay.innerHTML = `<i class="fas fa-times-circle" style="color: var(--red); margin-left: 5px;"></i>`;
+        }
+      }, 500); 
+    });
 
     // ── Order Submit ──
     document.getElementById('orderForm').addEventListener('submit', async (e) => {
