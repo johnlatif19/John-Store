@@ -241,23 +241,65 @@ app.get("/api/order/:id", async (req, res) => {
 
 app.post("/api/order/confirm-payment", upload.single("screenshot"), async (req, res) => {
   try {
-    const { orderId, transactionId } = req.body;
-    if (!orderId || !transactionId) return res.status(400).json({ success: false, message: "رقم الطلب ورقم المعاملة مطلوبان" });
+    const { orderId } = req.body;
+    if (!orderId) return res.status(400).json({ success: false, message: "رقم الطلب مطلوب" });
 
     let screenshotUrl = null;
     if (req.file) screenshotUrl = await uploadToCloudinary(req.file);
 
     const updateData = {
-      transactionId,
       status: "تم الدفع - قيد المراجعة",
       payment_confirmed_at: admin.firestore.FieldValue.serverTimestamp()
     };
     if (screenshotUrl) updateData.screenshotUrl = screenshotUrl;
 
+    // تحديث الطلب في الفايربيز
     await firestore().collection("orders").doc(orderId).update(updateData);
+    
+    // جلب بيانات الطلب عشان نبعت الإيميل
     const orderDoc = await firestore().collection("orders").doc(orderId).get();
     const orderData = orderDoc.data();
-    await telegramNotify(`💰 تم تأكيد الدفع\nرقم الطلب: ${orderId}\nرقم المعاملة: ${transactionId}\nالمبلغ: ${orderData.totalAmount}\nالعميل: ${orderData.name}`);
+
+    // إشعار تلجرام ليك
+    await telegramNotify(`💰 تم تأكيد الدفع\nرقم الطلب: ${orderId}\nالمبلغ: ${orderData.totalAmount}\nالعميل: ${orderData.name}\nالايدي: ${orderData.playerId}`);
+
+    // ✅ إرسال إيميل للعميل
+    if (orderData.email) {
+      try {
+        await transporter.sendMail({
+          from: `"JOHN STORE" <${process.env.SMTP_USER || process.env.EMAIL_USER}>`,
+          to: orderData.email,
+          subject: "🧾 تم استلام طلبك بنجاح - JOHN STORE",
+          html: `
+            <div dir="rtl" style="font-family: 'Tajawal', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; background-color: #f9f9f9;">
+              <div style="text-align: center; margin-bottom: 20px;">
+                <img src="https://i.postimg.cc/x8xtX2KR/john-store.png" alt="JOHN STORE" style="width: 80px; height: 80px; border-radius: 50%;">
+                <h2 style="color: #ff7a00; margin-top: 10px;">JOHN STORE</h2>
+              </div>
+              <h3 style="color: #1a1a2e;">أهلاً ${orderData.name}،</h3>
+              <p style="color: #333; line-height: 1.6;">تم استلام إثبات الدفع الخاص بك بنجاح، وجاري مراجعة الطلب وشحن الحساب في أقرب وقت.</p>
+              
+              <div style="background: #fff; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #ddd;">
+                <h4 style="margin-top: 0; color: #ff7a00;">تفاصيل الطلب:</h4>
+                <p><strong>رقم الطلب:</strong> ${orderId}</p>
+                <p><strong>ID اللاعب:</strong> ${orderData.playerId}</p>
+                <p><strong>المنتج:</strong> ${orderData.ucAmount ? orderData.ucAmount + ' UC' : orderData.bundle}</p>
+                <p><strong>الإجمالي:</strong> ${orderData.totalAmount} ج.م</p>
+              </div>
+              
+              <p style="color: #666; font-size: 0.9rem;">سيتم إرسال رسالة أخرى لك بمجرد شحن الحساب بنجاح.</p>
+              
+              <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
+              <p style="color: #666; font-size: 12px; text-align: center;">مع تحيات فريق JOHN STORE</p>
+            </div>
+          `
+        });
+        console.log("✅ تم إرسال إيميل الفاتورة للعميل:", orderData.email);
+      } catch (emailErr) {
+        console.error("❌ فشل إرسال إيميل الفاتورة للعميل:", emailErr);
+      }
+    }
+
     res.json({ success: true, message: "تم تأكيد الدفع بنجاح", screenshotUrl });
   } catch (err) {
     console.error(err);
@@ -349,22 +391,19 @@ app.post("/api/suggestion", async (req, res) => {
   }
 });
 
-
 // ========================================================
-// ====== NEW: PUBG Mobile Player Lookup System ===========
+// ====== PUBG Mobile Player Lookup System ===========
 // ========================================================
 
-// حماية بسيطة من السبام (Rate Limiting)
 const lookupRateLimit = new Map();
-const RATE_LIMIT_WINDOW = 60 * 1000; // دقيقة واحدة
-const MAX_REQUESTS_PER_WINDOW = 10; // 10 طلبات كحد أقصى في الدقيقة لكل IP
+const RATE_LIMIT_WINDOW = 60 * 1000; 
+const MAX_REQUESTS_PER_WINDOW = 10; 
 
 app.get("/api/lookup-player/:uid", async (req, res) => {
   try {
     const clientIp = req.ip || req.headers['x-forwarded-for'] || 'unknown';
     const now = Date.now();
     
-    // فحص الـ Rate Limit
     if (!lookupRateLimit.has(clientIp)) {
       lookupRateLimit.set(clientIp, []);
     }
@@ -375,7 +414,6 @@ app.get("/api/lookup-player/:uid", async (req, res) => {
     requestTimes.push(now);
     lookupRateLimit.set(clientIp, requestTimes);
 
-    // التحقق من الـ UID
     const uid = req.params.uid;
     if (!uid || isNaN(uid) || uid.length < 5) {
       return res.status(400).json({ success: false, message: "يرجى إدخال ID صحيح" });
@@ -387,7 +425,6 @@ app.get("/api/lookup-player/:uid", async (req, res) => {
       return res.status(500).json({ success: false, message: "خدمة البحث غير مهيأة حالياً" });
     }
 
-    // إرسال الطلب لـ RapidAPI
     const response = await fetch(`https://id-game-checker.p.rapidapi.com/pubgm-global/${uid}`, {
       method: 'GET',
       headers: {
@@ -398,7 +435,6 @@ app.get("/api/lookup-player/:uid", async (req, res) => {
 
     const data = await response.json();
 
-    // معالجة النتيجة
     if (data && data.error === false && data.data && data.data.username) {
       return res.json({ success: true, name: data.data.username });
     } else {
@@ -411,7 +447,6 @@ app.get("/api/lookup-player/:uid", async (req, res) => {
 });
 
 // ========================================================
-
 
 // ====== Admin APIs ======
 app.post("/api/admin/login", async (req, res) => {
@@ -552,7 +587,6 @@ app.post("/api/admin/reply-inquiry", requireAdmin, async (req, res) => {
   }
 });
 
-// تحسين واجهة إرسال الرسائل المباشرة
 app.post("/api/admin/send-message", requireAdmin, async (req, res) => {
   try {
     const { email, subject, message } = req.body;
@@ -706,37 +740,3 @@ app.delete("/api/admin/coupons/:id", requireAdmin, async (req, res) => {
 app.post("/api/verify-coupon", async (req, res) => {
   try {
     const { code, originalAmount } = req.body;
-    if (!code || !originalAmount) return res.status(400).json({ success: false, message: "الكود والمبلغ مطلوبان" });
-
-    const snap = await getCouponsCollection().where("code", "==", code.toUpperCase()).where("isActive", "==", true).limit(1).get();
-    if (snap.empty) return res.status(404).json({ success: false, message: "الكوبون غير صالح أو منتهي الصلاحية" });
-
-    const couponDoc = snap.docs[0];
-    const coupon = { id: couponDoc.id, ...couponDoc.data() };
-    if (coupon.expiresAt && coupon.expiresAt.toDate && coupon.expiresAt.toDate() < new Date()) {
-      return res.status(400).json({ success: false, message: "انتهت صلاحية الكوبون" });
-    }
-
-    const discount = (Number(originalAmount) * coupon.discountPercent) / 100;
-    const newAmount = Number(originalAmount) - discount;
-    res.json({ success: true, discount: discount.toFixed(2), newTotal: newAmount.toFixed(2), discountPercent: coupon.discountPercent, couponCode: coupon.code });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-app.post("/api/use-coupon", async (req, res) => {
-  try {
-    const { code } = req.body;
-    if (!code) return res.status(400).json({ success: false });
-    const snap = await getCouponsCollection().where("code", "==", code.toUpperCase()).limit(1).get();
-    if (!snap.empty) await snap.docs[0].ref.update({ usedCount: admin.firestore.FieldValue.increment(1) });
-    res.json({ success: true });
-  } catch (err) {
-    console.error(err);
-    res.json({ success: false });
-  }
-});
-
-module.exports = app;
