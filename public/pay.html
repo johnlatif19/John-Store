@@ -22,17 +22,16 @@
   <main class="container">
     <div class="payment-container">
       <div class="payment-header">
-        <h2><i class="fas fa-file-invoice-dollar"></i> فاتورة الدفع</h2>
-        <p style="color: #ccc; font-size: 0.9rem;">يرجى إتمام التحويل ورفع الإيصال لتأكيد الطلب.</p>
+        <h2><i class="fas fa-credit-card"></i> إتمام عملية الدفع</h2>
       </div>
 
       <div class="payment-info">
         <div class="info-row">
-          <span class="info-label">رقم الفاتورة / الطلب:</span>
+          <span class="info-label">رقم الطلب:</span>
           <span class="info-value" id="orderId">جاري التحميل...</span>
         </div>
         <div class="info-row">
-          <span class="info-label">المبلغ المطلوب:</span>
+          <span class="info-label">المبلغ الإجمالي:</span>
           <span class="info-value" id="orderAmount">جاري التحميل...</span>
         </div>
       </div>
@@ -41,7 +40,7 @@
       <div class="step">
         <div class="step-number">1</div>
         <div class="step-content">
-          <div class="step-title">قم بتحويل المبلغ إلى الرقم التالي</div>
+          <div class="step-title">قم بالتحويل إلى أحد الأرقام التالية</div>
           <div class="step-details">
             <div class="method-card">
               <i class="fas fa-mobile-alt"></i> <strong>فودافون كاش / اورانج ماني / اتصالات كاش</strong>
@@ -51,17 +50,28 @@
         </div>
       </div>
 
-      <!-- الخطوة 2: رفع الصورة -->
+      <!-- الخطوة 2: إدخال رقم المعاملة -->
       <div class="step">
         <div class="step-number">2</div>
         <div class="step-content">
-          <div class="step-title">ارفع صورة إثبات التحويل (سكرين شوت)</div>
+          <div class="step-title">أدخل رقم المعاملة (Transaction ID)</div>
+          <div class="step-details">
+            <input type="text" id="transactionId" class="form-control" placeholder="مثال: TRX-123456789" required>
+          </div>
+        </div>
+      </div>
+
+      <!-- الخطوة 3: رفع الصورة -->
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <div class="step-title">ارفع صورة إثبات التحويل</div>
           <div class="step-details">
             <div class="file-upload">
               <input type="file" id="paymentProof" accept="image/*" required>
               <label for="paymentProof" class="file-upload-label">
                 <i class="fas fa-cloud-upload-alt"></i>
-                <span>انقر لاختيار صورة الإيصال</span>
+                <span>انقر لاختيار الصورة</span>
               </label>
             </div>
             <div id="previewContainer" class="preview-container">
@@ -72,7 +82,7 @@
       </div>
 
       <button id="submitPayment" class="btn">
-        <i class="fas fa-check-circle"></i> تأكيد الدفع وإرسال الإيصال
+        <i class="fas fa-check-circle"></i> تأكيد إتمام الدفع
       </button>
 
       <a href="https://wa.me/201274445091" class="btn btn-whatsapp" style="margin-top: 15px;">
