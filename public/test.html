@@ -480,19 +480,6 @@
 
     .field input::placeholder { color: rgba(255,255,255,0.2); }
 
-    /* ── إعدادات الحقل المقفول (Readonly) عشان ميبقاش شكله غريب ── */
-    .field input[readonly] {
-      background: rgba(255, 255, 255, 0.02);
-      border-color: rgba(255, 255, 255, 0.05);
-      color: var(--text);
-      cursor: default;
-    }
-    .field input[readonly]:focus {
-      box-shadow: none;
-      border-color: rgba(255, 255, 255, 0.05);
-      background: rgba(255, 255, 255, 0.02);
-    }
-
     .coupon-row {
       display: flex;
       gap: 8px;
@@ -1046,10 +1033,10 @@
 
         <form id="orderForm">
           
-          <!-- حقل الاسم أصبح للقراءة فقط (readonly) -->
+          <!-- تعديل 1: حقل الاسم أصبح للقراءة فقط (readonly) -->
           <div class="field">
             <label>الاسم داخل اللعبة</label>
-            <input type="text" id="name" placeholder="سيتم جلب الاسم تلقائياً..." required readonly>
+            <input type="text" id="name" placeholder="سيتم جلب الاسم تلقائياً..." required readonly style="opacity: 0.8; cursor: not-allowed;">
           </div>
           
           <div class="field">
@@ -1340,7 +1327,7 @@
       }
     }
 
-    // ====== كود البحث التلقائي وتعبئة حقل الاسم ======
+    // ====== تعديل 2: كود البحث التلقائي وتعبئة حقل الاسم ======
     let lookupTimeout;
     const playerIdInput = document.getElementById('playerId');
     const playerNameInput = document.getElementById('name');
@@ -1353,36 +1340,34 @@
       clearTimeout(lookupTimeout);
       nameDisplay.innerHTML = '';
       
-      // لو الحقل فاضي أو مش أرقام، نفضي خانة الاسم ونرجع الـ placeholder الأصلي
+      // لو الحقل فاضي أو مش أرقام، نفضي خانة الاسم
       if (!uid || isNaN(uid)) {
-        playerNameInput.placeholder = "سيتم جلب الاسم تلقائياً...";
         playerNameInput.value = ''; 
         return; 
       }
       
       // الانتظار 500 مللي ثانية بعد توقف الكتابة (Debounce)
       lookupTimeout = setTimeout(async () => {
-        // نظهر علامة التحميل جنب حقل الـ ID ونغير الـ placeholder
+        // نظهر علامة التحميل جنب حقل الـ ID ونكتب في خانة الاسم
         nameDisplay.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px;margin-left:5px;display:inline-block;vertical-align:middle;border-top-color:var(--gold);"></span>';
-        playerNameInput.placeholder = 'جاري البحث...';
-        playerNameInput.value = ''; 
+        playerNameInput.value = 'جاري البحث...';
         
         try {
           const res = await fetch(`/api/lookup-player/${uid}`);
           const data = await res.json();
           
           if (data.success) {
-            playerNameInput.placeholder = "سيتم جلب الاسم تلقائياً...";
+            // نكتب الاسم جوه حقل الاسم
             playerNameInput.value = data.name;
+            // نعرض علامة صح خضراء جنب الـ ID
             nameDisplay.innerHTML = `<i class="fas fa-check-circle" style="color: var(--green); margin-left: 5px;"></i>`;
           } else {
-            playerNameInput.placeholder = "ID غير صحيح";
-            playerNameInput.value = '';
+            // في حالة الخطأ نفضي الاسم ونظهر رسالة حمراء
+            playerNameInput.value = 'ID غير صحيح';
             nameDisplay.innerHTML = `<i class="fas fa-times-circle" style="color: var(--red); margin-left: 5px;"></i> <span style="color:var(--red);font-size:0.8rem;">${data.message}</span>`;
           }
         } catch (err) {
-          playerNameInput.placeholder = "خطأ في الاتصال";
-          playerNameInput.value = '';
+          playerNameInput.value = 'خطأ في الاتصال';
           nameDisplay.innerHTML = `<i class="fas fa-times-circle" style="color: var(--red); margin-left: 5px;"></i>`;
         }
       }, 500); 
