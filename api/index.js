@@ -268,16 +268,14 @@ app.post("/api/order/confirm-payment", upload.single("screenshot"), async (req, 
 //الاستفسار 
 app.post("/api/inquiry", async (req, res) => {
   try {
-    const { name, email, message } = req.body; // أضفنا name أيضاً
+    const { name, email, message } = req.body;
 
-    // تحقق من وجود الحقول
     if (!email || !message) {
       return res.status(400).json({ success: false, message: "البريد الإلكتروني والرسالة مطلوبان" });
     }
 
-    // حفظ في Firebase
     const inquiryData = {
-      name: name || "غير مذكور", // إذا لم يرسل name من الواجهة
+      name: name || "غير مذكور",
       email: email,
       message: message,
       status: "قيد الانتظار",
@@ -285,10 +283,8 @@ app.post("/api/inquiry", async (req, res) => {
     };
     const ref = await firestore().collection("inquiries").add(inquiryData);
 
-    // إشعار تلغرام (لا ننتظر اكتماله ولا نسمح له بتعطيل العملية)
     telegramNotify(`📩 استفسار جديد\nالاسم: ${name || "غير مذكور"}\nالبريد: ${email}\nالرسالة: ${message.substring(0, 100)}`).catch(e => console.error("Telegram notify error:", e));
 
-    // إشعار إيميل (نحاول إرساله ولكن لا ننتظر اكتماله)
     const notifyTo = process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER;
     if (notifyTo) {
       transporter.sendMail({
@@ -304,12 +300,10 @@ app.post("/api/inquiry", async (req, res) => {
       }).catch(e => console.error("Email notify error:", e));
     }
 
-    // إرجاع نجاح للمستخدم حتى لو فشلت الإشعارات
     return res.status(200).json({ success: true, id: ref.id, message: "تم استلام استفسارك بنجاح" });
 
   } catch (err) {
     console.error("❌ خطأ في /api/inquiry:", err);
-    // خطأ محتمل من Firebase
     return res.status(500).json({ success: false, message: "حدث خطأ في قاعدة البيانات. الرجاء المحاولة لاحقاً." });
   }
 });
@@ -331,7 +325,6 @@ app.post("/api/suggestion", async (req, res) => {
     };
     const ref = await firestore().collection("suggestions").add(suggestionData);
 
-    // إشعارات (لا تؤثر على نجاح العملية)
     telegramNotify(`💡 اقتراح جديد\nالاسم: ${name}\nوسيلة التواصل: ${contact}\nالاقتراح: ${message.substring(0, 100)}`).catch(e => console.error(e));
     
     const notifyTo = process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER;
@@ -355,6 +348,71 @@ app.post("/api/suggestion", async (req, res) => {
     return res.status(500).json({ success: false, message: "حدث خطأ في الخادم. يرجى المحاولة مرة أخرى." });
   }
 });
+
+
+// ========================================================
+// ====== NEW: PUBG Mobile Player Lookup System ===========
+// ========================================================
+
+// حماية بسيطة من السبام (Rate Limiting)
+const lookupRateLimit = new Map();
+const RATE_LIMIT_WINDOW = 60 * 1000; // دقيقة واحدة
+const MAX_REQUESTS_PER_WINDOW = 10; // 10 طلبات كحد أقصى في الدقيقة لكل IP
+
+app.get("/api/lookup-player/:uid", async (req, res) => {
+  try {
+    const clientIp = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+    const now = Date.now();
+    
+    // فحص الـ Rate Limit
+    if (!lookupRateLimit.has(clientIp)) {
+      lookupRateLimit.set(clientIp, []);
+    }
+    const requestTimes = lookupRateLimit.get(clientIp).filter(time => now - time < RATE_LIMIT_WINDOW);
+    if (requestTimes.length >= MAX_REQUESTS_PER_WINDOW) {
+      return res.status(429).json({ success: false, message: "طلبات كثيرة جداً. يرجى الانتظار دقيقة." });
+    }
+    requestTimes.push(now);
+    lookupRateLimit.set(clientIp, requestTimes);
+
+    // التحقق من الـ UID
+    const uid = req.params.uid;
+    if (!uid || isNaN(uid) || uid.length < 5) {
+      return res.status(400).json({ success: false, message: "يرجى إدخال ID صحيح" });
+    }
+
+    const apiKey = process.env.RAPIDAPI_KEY;
+    if (!apiKey) {
+      console.error("Missing RAPIDAPI_KEY in environment variables");
+      return res.status(500).json({ success: false, message: "خدمة البحث غير مهيأة حالياً" });
+    }
+
+    // إرسال الطلب لـ RapidAPI
+    const response = await fetch(`https://id-game-checker.p.rapidapi.com/pubgm-global/${uid}`, {
+      method: 'GET',
+      headers: {
+        'X-RapidAPI-Key': apiKey,
+        'X-RapidAPI-Host': 'id-game-checker.p.rapidapi.com'
+      }
+    });
+
+    const data = await response.json();
+
+    // معالجة النتيجة
+    if (data && data.error === false && data.data && data.data.username) {
+      return res.json({ success: true, name: data.data.username });
+    } else {
+      return res.status(404).json({ success: false, message: "لم يتم العثور على اللاعب، تأكد من الـ ID" });
+    }
+  } catch (error) {
+    console.error("Lookup error:", error);
+    return res.status(500).json({ success: false, message: "حدث خطأ أثناء الاتصال بالخادم" });
+  }
+});
+
+// ========================================================
+
+
 // ====== Admin APIs ======
 app.post("/api/admin/login", async (req, res) => {
   const { username, password } = req.body;
@@ -499,54 +557,31 @@ app.post("/api/admin/send-message", requireAdmin, async (req, res) => {
   try {
     const { email, subject, message } = req.body;
     
-    // تحقق محسن من الحقول
     if (!email || !subject || !message) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "جميع الحقول مطلوبة: البريد الإلكتروني، العنوان، والرسالة" 
-      });
+      return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة: البريد الإلكتروني، العنوان، والرسالة" });
     }
 
-    // تحقق من صيغة البريد الإلكتروني
     const emailRegex = /^[^\s@]+@([^\s@.,]+\.)+[^\s@.,]{2,}$/;
     if (!emailRegex.test(email)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "صيغة البريد الإلكتروني غير صحيحة" 
-      });
+      return res.status(400).json({ success: false, message: "صيغة البريد الإلكتروني غير صحيحة" });
     }
 
-    // حفظ الرسالة في Firestore (نسخة احتياطية)
     const messageData = {
-      to: email,
-      subject: subject,
-      message: message,
+      to: email, subject: subject, message: message,
       sent_at: admin.firestore.FieldValue.serverTimestamp(),
       status: "pending"
     };
     
     const docRef = await firestore().collection("messages").add(messageData);
-
-    // التحقق من وجود إعدادات SMTP
     const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USER;
     const smtpPass = process.env.SMTP_PASS || process.env.EMAIL_PASS;
     
     if (!smtpUser || !smtpPass) {
       console.error("❌ SMTP غير مهيأ: تأكد من وجود SMTP_USER و SMTP_PASS في البيئة");
-      
-      // تحديث حالة الرسالة في قاعدة البيانات
-      await docRef.update({ 
-        status: "failed",
-        error: "SMTP configuration missing"
-      });
-      
-      return res.status(500).json({ 
-        success: false, 
-        message: "خادم البريد الإلكتروني غير مهيأ. يرجى التواصل مع الدعم الفني." 
-      });
+      await docRef.update({ status: "failed", error: "SMTP configuration missing" });
+      return res.status(500).json({ success: false, message: "خادم البريد الإلكتروني غير مهيأ. يرجى التواصل مع الدعم الفني." });
     }
 
-    // محاولة إرسال البريد الإلكتروني
     try {
       const info = await transporter.sendMail({
         from: `"TRIPxESPORTS فريق الدعم" <${smtpUser}>`,
@@ -561,11 +596,7 @@ app.post("/api/admin/send-message", requireAdmin, async (req, res) => {
             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
               <h3 style="color: #1a1a2e; margin-top: 0;">${subject}</h3>
               <div style="color: #333; line-height: 1.6;">
-                ${String(message)
-                  .replace(/\n/g, "<br>")
-                  .replace(/&/g, '&amp;')
-                  .replace(/</g, '&lt;')
-                  .replace(/>/g, '&gt;')}
+                ${String(message).replace(/\n/g, "<br>").replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
               </div>
             </div>
             <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
@@ -580,29 +611,18 @@ app.post("/api/admin/send-message", requireAdmin, async (req, res) => {
 
       console.log("✅ تم إرسال البريد:", info.messageId);
       
-      // تحديث حالة الرسالة في قاعدة البيانات
       await docRef.update({ 
-        status: "sent",
-        message_id: info.messageId,
+        status: "sent", message_id: info.messageId,
         sent_at: admin.firestore.FieldValue.serverTimestamp()
       });
       
-      return res.json({ 
-        success: true, 
-        message: "تم إرسال الرسالة بنجاح",
-        messageId: info.messageId
-      });
+      return res.json({ success: true, message: "تم إرسال الرسالة بنجاح", messageId: info.messageId });
       
     } catch (smtpError) {
       console.error("❌ فشل إرسال البريد:", smtpError);
       
-      // تحديث حالة الرسالة في قاعدة البيانات
-      await docRef.update({ 
-        status: "failed",
-        error: smtpError.message || "SMTP sending failed"
-      });
+      await docRef.update({ status: "failed", error: smtpError.message || "SMTP sending failed" });
       
-      // رسائل خطأ محددة حسب نوع المشكلة
       let userMessage = "فشل إرسال الرسالة. ";
       if (smtpError.code === 'EAUTH') {
         userMessage += "خطأ في المصادقة. يرجى التحقق من إعدادات البريد الإلكتروني.";
@@ -615,18 +635,14 @@ app.post("/api/admin/send-message", requireAdmin, async (req, res) => {
       }
       
       return res.status(500).json({ 
-        success: false, 
-        message: userMessage,
+        success: false, message: userMessage,
         details: process.env.NODE_ENV === 'development' ? smtpError.message : undefined
       });
     }
     
   } catch (err) {
     console.error("❌ خطأ في /api/admin/send-message:", err);
-    return res.status(500).json({ 
-      success: false, 
-      message: "حدث خطأ داخلي في الخادم. يرجى المحاولة لاحقاً." 
-    });
+    return res.status(500).json({ success: false, message: "حدث خطأ داخلي في الخادم. يرجى المحاولة لاحقاً." });
   }
 });
 
