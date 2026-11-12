@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>تسجيل الدخول - لوحة تحكم JOHN STORE</title>
+  <link rel="icon" href="https://i.postimg.cc/x8xtX2KR/john-store.png" type="image/png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/login.css">
+
+</head>
+<body>
+  <div class="login-container">
+    <div class="logo">
+      <img src="https://i.postimg.cc/x8xtX2KR/john-store.png" alt="JOHN STORE Logo">
+      <h2>تسجيل الدخول</h2>
+    </div>
+    <p>الرجاء إدخال بيانات الاعتماد الخاصة بك للوصول إلى لوحة التحكم</p>
+    
+    <div id="alertBox" class="alert alert-danger" style="display: none;">
+      <span id="alertMessage"></span>
+      <button class="close-alert" onclick="closeAlert()">&times;</button>
+    </div>
+    
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="username">اسم المستخدم</label>
+        <div class="input-group">
+          <i class="fas fa-user"></i>
+          <input type="text" id="username" class="form-control" placeholder="أدخل اسم المستخدم" required />
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="password">كلمة المرور</label>
+        <div class="input-group">
+          <i class="fas fa-lock"></i>
+          <input type="password" id="password" class="form-control" placeholder="أدخل كلمة المرور" required />
+        </div>
+      </div>
+      
+      <button type="submit" class="btn">
+        <i class="fas fa-sign-in-alt"></i> تسجيل الدخول
+      </button>
+      
+      <a href="#" class="forgot-password">نسيت كلمة المرور؟</a>
+    </form>
+  </div>
+
+  <script src="/js/login.js"></script>
+</body>
+</html>

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>لوحة التحكم - JOHN STORE</title>
+  <link rel="icon" href="https://i.postimg.cc/x8xtX2KR/john-store.png" type="image/png">
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+  <button class="mobile-menu-toggle" id="menuToggleBtn"><i class="fas fa-bars"></i></button>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="admin-container">
+    <div class="sidebar" id="mainSidebar">
+      <div class="sidebar-header">
+        <img src="https://i.postimg.cc/x8xtX2KR/john-store.png" alt="JOHN STORE">
+        <h2>JOHN STORE</h2>
+        <p>لوحة إدارة متكاملة</p>
+      </div>
+
+      <ul class="nav-menu">
+        <li class="nav-item"><a class="nav-link active" onclick="openTab('ordersTab', this)"><i class="fas fa-shopping-cart"></i><span>الطلبات</span></a></li>
+        <li class="nav-item"><a class="nav-link" onclick="openTab('usersTab', this)"><i class="fas fa-users"></i><span>المستخدمين</span></a></li>
+        <li class="nav-item"><a class="nav-link" onclick="openTab('loginLogsTab', this)"><i class="fas fa-sign-in-alt"></i><span>سجل الدخول</span></a></li>
+        <li class="nav-item"><a class="nav-link" onclick="openTab('inquiriesTab', this)"><i class="fas fa-question-circle"></i><span>الاستفسارات</span></a></li>
+        <li class="nav-item"><a class="nav-link" onclick="openTab('suggestionsTab', this)"><i class="fas fa-lightbulb"></i><span>الاقتراحات</span></a></li>
+        <li class="nav-item"><a class="nav-link" onclick="openTab('couponsTab', this)"><i class="fas fa-tags"></i><span>الكوبونات</span></a></li>
+        <li class="nav-item"><a class="nav-link" onclick="openTab('messagesTab', this)"><i class="fas fa-envelope"></i><span>الرسائل المباشرة</span></a></li>
+      </ul>
+
+      <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i><span>تسجيل الخروج</span></button>
+    </div>
+
+    <div class="main-content">
+      <div class="header">
+        <h1><i class="fas fa-tachometer-alt"></i> لوحة التحكم</h1>
+        <div class="user-info">
+          <span class="user-name">مرحبًا، Admin</span>
+          <img src="https://i.postimg.cc/x8xtX2KR/john-store.png" alt="Admin Avatar" style="width:40px;height:40px;border-radius:50%;object-fit:cover">
+        </div>
+      </div>
+
+      <div class="stats-cards">
+        <div class="stat-card orders"><h3><i class="fas fa-shopping-cart"></i> الطلبات</h3><div class="value" id="ordersCount">0</div></div>
+        <div class="stat-card users"><h3><i class="fas fa-users"></i> المستخدمين</h3><div class="value" id="usersCount">0</div></div>
+        <div class="stat-card inquiries"><h3><i class="fas fa-question-circle"></i> الاستفسارات</h3><div class="value" id="inquiriesCount">0</div></div>
+        <div class="stat-card suggestions"><h3><i class="fas fa-lightbulb"></i> الاقتراحات</h3><div class="value" id="suggestionsCount">0</div></div>
+      </div>
+
+      <div id="ordersTab" class="section tab-content active">
+        <div class="section-header">
+          <h2><i class="fas fa-shopping-cart"></i> إدارة الطلبات</h2>
+          <div class="search-row">
+            <input type="text" id="ordersSearch" class="form-control" placeholder="ابحث برقم الطلب أو ID اللاعب..." oninput="filterOrders()">
+          </div>
+        </div>
+        <div class="table-responsive"><table class="data-table"><thead><tr><th>العميل</th><th>ID اللاعب</th><th>النوع</th><th>المبلغ</th><th>الحالة</th><th>رقم التحويل</th><th>إثبات الدفع</th><th>الإجراءات</th></tr></thead><tbody id="ordersList"></tbody></table></div>
+      </div>
+
+      <div id="usersTab" class="section tab-content">
+        <div class="section-header">
+          <h2><i class="fas fa-users"></i> إدارة المستخدمين</h2>
+          <div class="search-row">
+            <input type="text" id="usersSearch" class="form-control" placeholder="ابحث بالاسم أو البريد أو ID..." oninput="filterUsers()">
+          </div>
+        </div>
+        <div class="table-responsive"><table class="data-table"><thead><tr><th>الاسم</th><th>البريد الإلكتروني</th><th>ID الأساسي</th><th>مرات الدخول</th><th>آخر دخول</th><th>الحالة</th><th>الإجراءات</th></tr></thead><tbody id="usersList"></tbody></table></div>
+      </div>
+
+      <div id="loginLogsTab" class="section tab-content">
+        <div class="section-header">
+          <h2><i class="fas fa-sign-in-alt"></i> سجل الدخول</h2>
+          <div class="search-row">
+            <input type="text" id="logsSearch" class="form-control" placeholder="ابحث بالاسم أو البريد..." oninput="filterLogs()">
+          </div>
+        </div>
+        <div class="table-responsive"><table class="data-table"><thead><tr><th>الاسم</th><th>البريد الإلكتروني</th><th>الحدث</th><th>النتيجة</th><th>السبب</th><th>IP</th><th>التاريخ</th></tr></thead><tbody id="loginLogsList"></tbody></table></div>
+      </div>
+
+      <div id="inquiriesTab" class="section tab-content">
+        <div class="section-header"><h2><i class="fas fa-question-circle"></i> إدارة الاستفسارات</h2></div>
+        <div class="table-responsive"><table class="data-table"><thead><tr><th>البريد الإلكتروني</th><th>التاريخ</th><th>الرسالة</th><th>الحالة</th><th>الإجراءات</th></tr></thead><tbody id="inquiriesList"></tbody></table></div>
+      </div>
+
+      <div id="couponsTab" class="section tab-content">
+        <div class="section-header"><h2><i class="fas fa-tags"></i> كوبونات الخصم</h2><button class="btn btn-primary" onclick="showAddCouponModal()"><i class="fas fa-plus"></i> إضافة كوبون جديد</button></div>
+        <div class="table-responsive"><table class="data-table"><thead><tr><th>الكود</th><th>الخصم (%)</th><th>الوصف</th><th>تاريخ الانتهاء</th><th>الاستخدام</th><th>الحالة</th><th>حذف</th></tr></thead><tbody id="couponsList"></tbody></table></div>
+      </div>
+
+      <div id="suggestionsTab" class="section tab-content">
+        <div class="section-header"><h2><i class="fas fa-lightbulb"></i> الاقتراحات</h2></div>
+        <div class="table-responsive"><table class="data-table"><thead><tr><th>الاسم</th><th>طريقة التواصل</th><th>التاريخ</th><th>الاقتراح</th><th>الإجراءات</th></tr></thead><tbody id="suggestionsList"></tbody></table></div>
+      </div>
+
+      <div id="messagesTab" class="section tab-content">
+        <div class="section-header"><h2><i class="fas fa-envelope"></i> إرسال رسالة مباشرة</h2></div>
+        <div class="message-form">
+          <div class="form-group"><label>بريد العميل:</label><input type="email" id="clientEmail" class="form-control" placeholder="example@domain.com"></div>
+          <div class="form-group"><label>عنوان الرسالة:</label><input type="text" id="emailSubject" class="form-control" placeholder="العنوان"></div>
+          <div class="form-group"><label>نص الرسالة:</label><textarea id="emailMessage" class="form-control" rows="3" placeholder="محتوى الرسالة"></textarea></div>
+          <button class="btn btn-primary" onclick="sendDirectMessage()"><i class="fas fa-paper-plane"></i> إرسال</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="replyModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fas fa-reply"></i> رد على الاستفسار</h3>
+        <button class="close" onclick="closeReplyModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="originalMessage" class="alert-info" style="padding:12px;border-radius:12px;margin-bottom:15px;"></div>
+        <div class="form-group">
+          <label>الرد:</label>
+          <textarea id="replyText" class="form-control" rows="4"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeReplyModal()">إلغاء</button>
+        <button class="btn btn-primary" onclick="sendReply()">إرسال الرد</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="addCouponModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fas fa-ticket-alt"></i> إضافة كوبون جديد</h3>
+        <button class="close" onclick="closeAddCouponModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group"><label>كود الخصم *</label><input type="text" id="couponCode" class="form-control" placeholder="مثال: SUMMER20" maxlength="20"></div>
+        <div class="form-group"><label>نسبة الخصم (%) *</label><input type="number" id="couponPercent" class="form-control" placeholder="10" min="1" max="100"></div>
+        <div class="form-group"><label>الوصف (اختياري)</label><input type="text" id="couponDesc" class="form-control" placeholder="عرض خاص"></div>
+        <div class="form-group"><label>تاريخ الانتهاء (اختياري)</label><input type="date" id="couponExpiry" class="form-control"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeAddCouponModal()">إلغاء</button>
+        <button class="btn btn-primary" onclick="addCoupon()">إضافة الكوبون</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="userDetailsModal" class="modal">
+    <div class="modal-content" style="max-width:700px;">
+      <div class="modal-header">
+        <h3><i class="fas fa-user"></i> تفاصيل المستخدم</h3>
+        <button class="close" onclick="closeUserDetailsModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="userDetailsBody"></div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeUserDetailsModal()">إغلاق</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="imageModal" class="image-modal" onclick="closeImageModal()">
+    <div class="image-modal-content">
+      <button class="close-image-modal" onclick="closeImageModal()">&times;</button>
+      <img id="modalImage" src="" alt="معاينة">
+    </div>
+  </div>
+
+  <script src="/js/dashboard.js"></script>
+  </body>
+</html>
