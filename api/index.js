@@ -18,11 +18,15 @@ app.use(cookieParser());
 // يجب وضعه قبل express.json()، لأن التحقق من HMAC يتطلب raw body
 app.post("/api/webhook/daftar-cash", express.raw({ type: "application/json" }), async (req, res) => {
   try {
-    // ⚠️ يجب تأكيد اسم رأس التوقيع من وثائق Daftar Cash
-    const signature = req.headers["x-daftar-signature"] || req.headers["x-webhook-signature"];
+    // جرب أسماء رؤوس متعددة (يجب تأكيدها من الوثائق أو السجلات)
+    const signature =
+      req.headers["x-daftar-signature"] ||
+      req.headers["x-webhook-signature"] ||
+      req.headers["x-signature"];
     const secret = process.env.DAFTAR_SIGNATURE_SECRET;
 
     if (!signature || !secret) {
+      console.log("Webhook missing signature or secret");
       return res.status(401).json({ success: false, message: "Missing signature" });
     }
 
@@ -32,19 +36,43 @@ app.post("/api/webhook/daftar-cash", express.raw({ type: "application/json" }), 
       .digest("hex");
 
     if (signature !== expectedSignature) {
+      console.log("Webhook signature mismatch");
       return res.status(401).json({ success: false, message: "Invalid signature" });
     }
 
-    const payload = JSON.parse(req.body.toString());
-    // ⚠️ يجب تأكيد أسماء الحقول من وثائق Daftar Cash
-    const orderId = payload.order_id || payload.orderId || payload.invoice_id;
-    const status = String(payload.status || "").toLowerCase();
+    const rawBody = req.body.toString();
+    console.log("Daftar webhook raw body:", rawBody);
 
-    if (orderId && (status === "paid" || status === "success" || status === "completed")) {
+    let payload = {};
+    try {
+      payload = JSON.parse(rawBody);
+    } catch (e) {
+      console.error("Webhook JSON parse error:", e.message);
+      return res.status(400).json({ success: false, message: "Invalid JSON" });
+    }
+
+    // جرب أسماء حقول متعددة
+    const orderId =
+      payload.order_id ||
+      payload.orderId ||
+      payload.invoice_id ||
+      payload.invoiceId ||
+      payload.external_id;
+    const status = String(
+      payload.status || payload.payment_status || payload.state || ""
+    ).toLowerCase();
+
+    console.log("Webhook parsed orderId:", orderId, "status:", status);
+
+    if (
+      orderId &&
+      ["paid", "success", "completed", "confirmed", "approved"].includes(status)
+    ) {
       await firestore().collection("orders").doc(orderId).update({
         status: "تم الدفع",
         payment_confirmed_at: admin.firestore.FieldValue.serverTimestamp(),
       });
+      console.log("Order updated to paid:", orderId);
     }
 
     return res.json({ received: true });
@@ -71,7 +99,10 @@ app.get("/sign-in.html", (req, res) => res.redirect(301, "/sign-in"));
 app.get("/log-in.html", (req, res) => res.redirect(301, "/log-in"));
 app.get("/account.html", (req, res) => res.redirect(301, "/account"));
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 3 * 1024 * 1024 } });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 3 * 1024 * 1024 },
+});
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -84,19 +115,30 @@ function initFirebase() {
   if (!process.env.FIREBASE_CONFIG) throw new Error("Missing FIREBASE_CONFIG env var");
   if (!process.env.FIREBASE_STORAGE_BUCKET) throw new Error("Missing FIREBASE_STORAGE_BUCKET env var");
   const serviceAccount = JSON.parse(process.env.FIREBASE_CONFIG);
-  if (serviceAccount.private_key) serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
+  if (serviceAccount.private_key) {
+    serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
+  }
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
   });
 }
 
-function firestore() { initFirebase(); return admin.firestore(); }
-function nowISO() { return new Date().toISOString(); }
+function firestore() {
+  initFirebase();
+  return admin.firestore();
+}
+
+function nowISO() {
+  return new Date().toISOString();
+}
 
 const transporter = nodemailer.createTransport({
   service: process.env.SMTP_SERVICE || "gmail",
-  auth: { user: process.env.SMTP_USER || process.env.EMAIL_USER, pass: process.env.SMTP_PASS || process.env.EMAIL_PASS }
+  auth: {
+    user: process.env.SMTP_USER || process.env.EMAIL_USER,
+    pass: process.env.SMTP_PASS || process.env.EMAIL_PASS,
+  },
 });
 
 async function telegramNotify(text) {
@@ -105,36 +147,70 @@ async function telegramNotify(text) {
     const chatId = process.env.TELEGRAM_CHAT_ID;
     if (!token || !chatId) return;
     const url = `https://api.telegram.org/bot${token}/sendMessage`;
-    const body = new URLSearchParams({ chat_id: String(chatId), text: String(text), parse_mode: "HTML" });
+    const body = new URLSearchParams({
+      chat_id: String(chatId),
+      text: String(text),
+      parse_mode: "HTML",
+    });
     await fetch(url, { method: "POST", body });
-  } catch (e) { console.error("Telegram notify failed:", e?.message || e); }
+  } catch (e) {
+    console.error("Telegram notify failed:", e?.message || e);
+  }
 }
 
 function requireAdmin(req, res, next) {
   try {
-    const token = req.cookies?.admin_token || (req.headers.authorization?.startsWith("Bearer ") ? req.headers.authorization.slice(7) : null);
+    const token =
+      req.cookies?.admin_token ||
+      (req.headers.authorization?.startsWith("Bearer ")
+        ? req.headers.authorization.slice(7)
+        : null);
     if (!token) return res.status(403).json({ success: false, message: "غير مصرح" });
     req.admin = jwt.verify(token, process.env.ADMIN_JWT_SECRET);
     next();
-  } catch (e) { return res.status(403).json({ success: false, message: "غير مصرح" }); }
+  } catch (e) {
+    return res.status(403).json({ success: false, message: "غير مصرح" });
+  }
 }
 
 function setAdminCookie(res, token) {
-  res.cookie("admin_token", token, { httpOnly: true, secure: true, sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
+  res.cookie("admin_token", token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
 }
 
 function requireUser(req, res, next) {
   try {
-    const token = req.cookies?.user_token || (req.headers.authorization?.startsWith("Bearer ") ? req.headers.authorization.slice(7) : null);
-    if (!token) return res.status(401).json({ success: false, message: "غير مصرح، يرجى تسجيل الدخول" });
-    req.user = jwt.verify(token, process.env.USER_JWT_SECRET || process.env.ADMIN_JWT_SECRET);
+    const token =
+      req.cookies?.user_token ||
+      (req.headers.authorization?.startsWith("Bearer ")
+        ? req.headers.authorization.slice(7)
+        : null);
+    if (!token)
+      return res.status(401).json({ success: false, message: "غير مصرح، يرجى تسجيل الدخول" });
+    req.user = jwt.verify(
+      token,
+      process.env.USER_JWT_SECRET || process.env.ADMIN_JWT_SECRET
+    );
     next();
-  } catch (e) { return res.status(401).json({ success: false, message: "جلسة غير صالحة، يرجى تسجيل الدخول" }); }
+  } catch (e) {
+    return res
+      .status(401)
+      .json({ success: false, message: "جلسة غير صالحة، يرجى تسجيل الدخول" });
+  }
 }
 
 function setUserCookie(res, token, remember) {
   const maxAge = remember ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
-  res.cookie("user_token", token, { httpOnly: true, secure: true, sameSite: "lax", maxAge });
+  res.cookie("user_token", token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    maxAge,
+  });
 }
 
 function hashPassword(password) {
@@ -157,13 +233,21 @@ function verifyPassword(password, stored) {
       crypto.scrypt(password, salt, 64, (err, derivedKey) => {
         if (err) return reject(err);
         if (derivedKey.length !== expected.length) return resolve(false);
-        try { resolve(crypto.timingSafeEqual(derivedKey, expected)); } catch { resolve(false); }
+        try {
+          resolve(crypto.timingSafeEqual(derivedKey, expected));
+        } catch {
+          resolve(false);
+        }
       });
-    } catch (e) { resolve(false); }
+    } catch (e) {
+      resolve(false);
+    }
   });
 }
 
-function generateBaseId() { return `JS-${crypto.randomInt(10000000, 99999999)}`; }
+function generateBaseId() {
+  return `JS-${crypto.randomInt(10000000, 99999999)}`;
+}
 
 function getClientIp(req) {
   const fwd = req.headers["x-forwarded-for"];
@@ -174,10 +258,13 @@ function getClientIp(req) {
 async function uploadToCloudinary(file) {
   if (!file) return null;
   return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream({ folder: "orders", resource_type: "image" }, (error, result) => {
-      if (error) return reject(error);
-      resolve(result.secure_url);
-    });
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: "orders", resource_type: "image" },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result.secure_url);
+      }
+    );
     stream.end(file.buffer);
   });
 }
@@ -185,16 +272,24 @@ async function uploadToCloudinary(file) {
 async function uploadScreenshotToCloudinary(file) {
   if (!file) return null;
   return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream({ folder: "screenshots", resource_type: "image" }, (error, result) => {
-      if (error) return reject(error);
-      resolve(result.secure_url);
-    });
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: "screenshots", resource_type: "image" },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result.secure_url);
+      }
+    );
     stream.end(file.buffer);
   });
 }
 
 function buildWelcomeEmailHtml(name, accountUrl) {
-  const safeName = String(name || "").replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]));
+  const safeName = String(name || "").replace(/[<>&"]/g, (c) => ({
+    "<": "&lt;",
+    ">": "&gt;",
+    "&": "&amp;",
+    '"': "&quot;",
+  }[c]));
   return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>مرحبًا بك في John Store</title></head><body style="margin:0;padding:0;background:#f5f7fb;font-family:'Cairo','Tajawal',Arial,sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f7fb;padding:40px 20px;"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e0e0e0;"><tr><td align="center" style="background-color:#1a1a2e;padding:35px 20px;"><img src="cid:johnstore-logo" alt="John Store" width="80" height="80" style="border-radius:50%;border:3px solid #ffb800;display:block;margin-bottom:15px;"><h1 style="margin:0;color:#ffffff;font-size:24px;">John <span style="color:#ffb800;">Store</span></h1></td></tr><tr><td style="padding:30px 20px;"><h2 style="color:#333333;">مرحبًا ${safeName}،</h2><p style="color:#444444;">تم إنشاء حسابك بنجاح على <strong>John Store</strong>.</p><p><strong>اسم المستخدم:</strong> ${safeName}</p><p>يمكنك الوصول إلى حسابك عبر الرابط أدناه:</p><table role="presentation" cellpadding="0" cellspacing="0" style="margin:30px auto;"><tr><td align="center" style="border-radius:8px;background:#ffb800;"><a href="${accountUrl}" target="_blank" style="display:inline-block;padding:14px 34px;color:#000;text-decoration:none;font-weight:bold;">لوحة حسابي</a></td></tr></table></td></tr><tr><td align="center" style="background-color:#f1f3f5;padding:20px;"><p style="margin:0;color:#888888;font-size:13px;">© ${new Date().getFullYear()} John Store - جميع الحقوق محفوظة.</p></td></tr></table></td></tr></table></body></html>`;
 }
 
@@ -205,59 +300,98 @@ async function sendWelcomeEmail(name, email) {
   const accountUrl = `${baseUrl}/account`;
   try {
     await transporter.sendMail({
-      from: `"John Store" <${from}>`, to: email, subject: "مرحبًا بك في John Store — تم إنشاء حسابك",
-      attachments: [{ filename: 'john-store.png', path: 'https://i.postimg.cc/x8xtX2KR/john-store.png', cid: 'johnstore-logo' }],
+      from: `"John Store" <${from}>`,
+      to: email,
+      subject: "مرحبًا بك في John Store — تم إنشاء حسابك",
+      attachments: [
+        {
+          filename: "john-store.png",
+          path: "https://i.postimg.cc/x8xtX2KR/john-store.png",
+          cid: "johnstore-logo",
+        },
+      ],
       html: buildWelcomeEmailHtml(name, accountUrl),
-      text: `مرحبًا ${name},\n\nتم إنشاء حسابك على John Store.\n\n${accountUrl}`
+      text: `مرحبًا ${name},\n\nتم إنشاء حسابك على John Store.\n\n${accountUrl}`,
     });
-  } catch (e) { console.error("Welcome email failed:", e?.message || e); }
+  } catch (e) {
+    console.error("Welcome email failed:", e?.message || e);
+  }
 }
 
 // ==================== Auth Routes ====================
-app.get("/api/health", (req, res) => { res.json({ success: true, time: nowISO() }); });
+app.get("/api/health", (req, res) => {
+  res.json({ success: true, time: nowISO() });
+});
 
 app.post("/api/auth/signup", async (req, res) => {
   try {
     const { name, email, password, customId } = req.body || {};
-    if (!name || !email || !password || !customId) return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة بما فيها الـ ID" });
+    if (!name || !email || !password || !customId)
+      return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة بما فيها الـ ID" });
 
     const cleanName = String(name).trim();
     const cleanEmail = String(email).trim().toLowerCase();
     const cleanId = String(customId).trim();
     const emailRegex = /^[^\s@]+@([^\s@.,]+\.)+[^\s@.,]{2,}$/;
 
-    if (cleanName.length < 3) return res.status(400).json({ success: false, message: "الاسم يجب أن يكون 3 أحرف على الأقل" });
-    if (!emailRegex.test(cleanEmail)) return res.status(400).json({ success: false, message: "صيغة البريد الإلكتروني غير صحيحة" });
-    if (String(password).length < 8) return res.status(400).json({ success: false, message: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" });
-    if (cleanId.length < 5) return res.status(400).json({ success: false, message: "ID الحساب يجب أن يكون 5 أرقام على الأقل" });
+    if (cleanName.length < 3)
+      return res.status(400).json({ success: false, message: "الاسم يجب أن يكون 3 أحرف على الأقل" });
+    if (!emailRegex.test(cleanEmail))
+      return res.status(400).json({ success: false, message: "صيغة البريد الإلكتروني غير صحيحة" });
+    if (String(password).length < 8)
+      return res.status(400).json({ success: false, message: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" });
+    if (cleanId.length < 5)
+      return res.status(400).json({ success: false, message: "ID الحساب يجب أن يكون 5 أرقام على الأقل" });
 
     const usersCol = firestore().collection("users");
     const existingEmail = await usersCol.where("email", "==", cleanEmail).limit(1).get();
-    if (!existingEmail.empty) return res.status(409).json({ success: false, message: "هذا البريد الإلكتروني مسجل بالفعل" });
+    if (!existingEmail.empty)
+      return res.status(409).json({ success: false, message: "هذا البريد الإلكتروني مسجل بالفعل" });
 
     const existingId = await usersCol.where("baseId", "==", cleanId).limit(1).get();
-    if (!existingId.empty) return res.status(409).json({ success: false, message: "هذا الـ ID مستخدم بالفعل" });
+    if (!existingId.empty)
+      return res.status(409).json({ success: false, message: "هذا الـ ID مستخدم بالفعل" });
 
     const passwordHash = await hashPassword(String(password));
     const userData = {
-      name: cleanName, email: cleanEmail, baseId: cleanId, passwordHash, role: "user", isActive: true,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(), lastLoginAt: null, loginCount: 0
+      name: cleanName,
+      email: cleanEmail,
+      baseId: cleanId,
+      passwordHash,
+      role: "user",
+      isActive: true,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastLoginAt: null,
+      loginCount: 0,
     };
     const ref = await usersCol.add(userData);
 
     await firestore().collection("login_logs").add({
-      userId: ref.id, name: cleanName, email: cleanEmail, event: "signup", success: true,
-      ip: getClientIp(req), userAgent: req.headers["user-agent"] || null,
-      createdAt: admin.firestore.FieldValue.serverTimestamp()
+      userId: ref.id,
+      name: cleanName,
+      email: cleanEmail,
+      event: "signup",
+      success: true,
+      ip: getClientIp(req),
+      userAgent: req.headers["user-agent"] || null,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    sendWelcomeEmail(cleanName, cleanEmail).catch(e => console.error(e));
+    sendWelcomeEmail(cleanName, cleanEmail).catch((e) => console.error(e));
 
-    const token = jwt.sign({ uid: ref.id, email: cleanEmail, name: cleanName, baseId: cleanId, role: "user" },
-      process.env.USER_JWT_SECRET || process.env.ADMIN_JWT_SECRET, { expiresIn: "30d" });
+    const token = jwt.sign(
+      { uid: ref.id, email: cleanEmail, name: cleanName, baseId: cleanId, role: "user" },
+      process.env.USER_JWT_SECRET || process.env.ADMIN_JWT_SECRET,
+      { expiresIn: "30d" }
+    );
     setUserCookie(res, token, true);
 
-    return res.status(201).json({ success: true, message: "تم إنشاء الحساب بنجاح", user: { id: ref.id, name: cleanName, email: cleanEmail, baseId: cleanId }, redirect: "/" });
+    return res.status(201).json({
+      success: true,
+      message: "تم إنشاء الحساب بنجاح",
+      user: { id: ref.id, name: cleanName, email: cleanEmail, baseId: cleanId },
+      redirect: "/",
+    });
   } catch (err) {
     console.error("Signup error:", err);
     return res.status(500).json({ success: false, message: "حدث خطأ أثناء إنشاء الحساب" });
@@ -267,7 +401,8 @@ app.post("/api/auth/signup", async (req, res) => {
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password, remember, userAgent } = req.body || {};
-    if (!email || !password) return res.status(400).json({ success: false, message: "البريد وكلمة المرور مطلوبان" });
+    if (!email || !password)
+      return res.status(400).json({ success: false, message: "البريد وكلمة المرور مطلوبان" });
 
     const cleanEmail = String(email).trim().toLowerCase();
     const snap = await firestore().collection("users").where("email", "==", cleanEmail).limit(1).get();
@@ -275,7 +410,16 @@ app.post("/api/auth/login", async (req, res) => {
     const ua = userAgent || req.headers["user-agent"] || null;
 
     if (snap.empty) {
-      await firestore().collection("login_logs").add({ userId: null, email: cleanEmail, event: "login", success: false, reason: "user_not_found", ip, userAgent: ua, createdAt: admin.firestore.FieldValue.serverTimestamp() });
+      await firestore().collection("login_logs").add({
+        userId: null,
+        email: cleanEmail,
+        event: "login",
+        success: false,
+        reason: "user_not_found",
+        ip,
+        userAgent: ua,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
       return res.status(401).json({ success: false, message: "البريد الإلكتروني أو كلمة المرور غير صحيحة" });
     }
 
@@ -283,24 +427,64 @@ app.post("/api/auth/login", async (req, res) => {
     const user = userDoc.data();
 
     if (user.isActive === false) {
-      await firestore().collection("login_logs").add({ userId: userDoc.id, name: user.name || null, email: cleanEmail, event: "login", success: false, reason: "inactive", ip, userAgent: ua, createdAt: admin.firestore.FieldValue.serverTimestamp() });
+      await firestore().collection("login_logs").add({
+        userId: userDoc.id,
+        name: user.name || null,
+        email: cleanEmail,
+        event: "login",
+        success: false,
+        reason: "inactive",
+        ip,
+        userAgent: ua,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
       return res.status(403).json({ success: false, message: "هذا الحساب موقوف" });
     }
 
     const ok = await verifyPassword(String(password), user.passwordHash);
     if (!ok) {
-      await firestore().collection("login_logs").add({ userId: userDoc.id, name: user.name || null, email: cleanEmail, event: "login", success: false, reason: "wrong_password", ip, userAgent: ua, createdAt: admin.firestore.FieldValue.serverTimestamp() });
+      await firestore().collection("login_logs").add({
+        userId: userDoc.id,
+        name: user.name || null,
+        email: cleanEmail,
+        event: "login",
+        success: false,
+        reason: "wrong_password",
+        ip,
+        userAgent: ua,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
       return res.status(401).json({ success: false, message: "البريد الإلكتروني أو كلمة المرور غير صحيحة" });
     }
 
-    await userDoc.ref.update({ lastLoginAt: admin.firestore.FieldValue.serverTimestamp(), loginCount: admin.firestore.FieldValue.increment(1) });
-    await firestore().collection("login_logs").add({ userId: userDoc.id, name: user.name || null, email: cleanEmail, event: "login", success: true, ip, userAgent: ua, createdAt: admin.firestore.FieldValue.serverTimestamp() });
+    await userDoc.ref.update({
+      lastLoginAt: admin.firestore.FieldValue.serverTimestamp(),
+      loginCount: admin.firestore.FieldValue.increment(1),
+    });
+    await firestore().collection("login_logs").add({
+      userId: userDoc.id,
+      name: user.name || null,
+      email: cleanEmail,
+      event: "login",
+      success: true,
+      ip,
+      userAgent: ua,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
-    const token = jwt.sign({ uid: userDoc.id, email: user.email, name: user.name, baseId: user.baseId, role: "user" },
-      process.env.USER_JWT_SECRET || process.env.ADMIN_JWT_SECRET, { expiresIn: remember ? "30d" : "1d" });
+    const token = jwt.sign(
+      { uid: userDoc.id, email: user.email, name: user.name, baseId: user.baseId, role: "user" },
+      process.env.USER_JWT_SECRET || process.env.ADMIN_JWT_SECRET,
+      { expiresIn: remember ? "30d" : "1d" }
+    );
     setUserCookie(res, token, !!remember);
 
-    return res.json({ success: true, message: "تم تسجيل الدخول بنجاح", user: { id: userDoc.id, name: user.name, email: user.email, baseId: user.baseId }, redirect: "/" });
+    return res.json({
+      success: true,
+      message: "تم تسجيل الدخول بنجاح",
+      user: { id: userDoc.id, name: user.name, email: user.email, baseId: user.baseId },
+      redirect: "/",
+    });
   } catch (err) {
     console.error("Login error:", err);
     return res.status(500).json({ success: false, message: "حدث خطأ أثناء تسجيل الدخول" });
@@ -310,10 +494,24 @@ app.post("/api/auth/login", async (req, res) => {
 app.get("/api/auth/me", requireUser, async (req, res) => {
   try {
     const doc = await firestore().collection("users").doc(req.user.uid).get();
-    if (!doc.exists) return res.status(404).json({ success: false, message: "المستخدم غير موجود" });
+    if (!doc.exists)
+      return res.status(404).json({ success: false, message: "المستخدم غير موجود" });
     const u = doc.data();
-    res.json({ success: true, user: { id: doc.id, name: u.name, email: u.email, baseId: u.baseId, role: u.role || "user", isActive: u.isActive !== false } });
-  } catch (e) { console.error(e); res.status(500).json({ success: false, message: "خطأ في جلب البيانات" }); }
+    res.json({
+      success: true,
+      user: {
+        id: doc.id,
+        name: u.name,
+        email: u.email,
+        baseId: u.baseId,
+        role: u.role || "user",
+        isActive: u.isActive !== false,
+      },
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, message: "خطأ في جلب البيانات" });
+  }
 });
 
 app.put("/api/auth/update", requireUser, async (req, res) => {
@@ -321,24 +519,34 @@ app.put("/api/auth/update", requireUser, async (req, res) => {
     const { name, customId } = req.body;
     const userRef = firestore().collection("users").doc(req.user.uid);
     const userDoc = await userRef.get();
-    if (!userDoc.exists) return res.status(404).json({ success: false, message: "المستخدم غير موجود" });
+    if (!userDoc.exists)
+      return res.status(404).json({ success: false, message: "المستخدم غير موجود" });
 
     const updateData = {};
     if (name && name.trim().length >= 3) updateData.name = name.trim();
     if (customId && customId.trim() !== userDoc.data().baseId) {
       const cleanId = String(customId).trim();
-      if (cleanId.length < 5) return res.status(400).json({ success: false, message: "ID الحساب يجب أن يكون 5 أرقام على الأقل" });
+      if (cleanId.length < 5)
+        return res.status(400).json({ success: false, message: "ID الحساب يجب أن يكون 5 أرقام على الأقل" });
       const dup = await firestore().collection("users").where("baseId", "==", cleanId).limit(1).get();
-      if (!dup.empty) return res.status(409).json({ success: false, message: "هذا الـ ID مستخدم بالفعل" });
+      if (!dup.empty)
+        return res.status(409).json({ success: false, message: "هذا الـ ID مستخدم بالفعل" });
       updateData.baseId = cleanId;
     }
-    if (Object.keys(updateData).length === 0) return res.status(400).json({ success: false, message: "لا توجد بيانات للتحديث" });
+    if (Object.keys(updateData).length === 0)
+      return res.status(400).json({ success: false, message: "لا توجد بيانات للتحديث" });
     await userRef.update(updateData);
     res.json({ success: true, message: "تم تحديث البيانات بنجاح" });
-  } catch (error) { console.error(error); res.status(500).json({ success: false, message: "حدث خطأ أثناء التحديث" }); }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "حدث خطأ أثناء التحديث" });
+  }
 });
 
-app.post("/api/auth/logout", (req, res) => { res.clearCookie("user_token"); res.json({ success: true }); });
+app.post("/api/auth/logout", (req, res) => {
+  res.clearCookie("user_token");
+  res.json({ success: true });
+});
 
 // ==================== Account Routes ====================
 app.get("/api/account/orders", requireUser, async (req, res) => {
@@ -350,46 +558,73 @@ app.get("/api/account/orders", requireUser, async (req, res) => {
     const snapByEmail = await firestore().collection("orders").where("email", "==", userEmail).get();
 
     const ordersMap = new Map();
-    snap.docs.forEach(d => ordersMap.set(d.id, d));
-    snapByEmail.docs.forEach(d => ordersMap.set(d.id, d));
+    snap.docs.forEach((d) => ordersMap.set(d.id, d));
+    snapByEmail.docs.forEach((d) => ordersMap.set(d.id, d));
 
-    const data = await Promise.all(Array.from(ordersMap.values()).map(async d => {
-      const o = d.data();
-      let createdAt = null;
-      if (o.created_at && o.created_at.toDate) createdAt = o.created_at.toDate().toISOString();
-      const screensSnap = await firestore().collection("screenshots").where("orderId", "==", d.id).get();
-      const screens = screensSnap.docs.map(s => ({ id: s.id, imageUrl: s.data().imageUrl }));
-      return {
-        id: d.id, playerId: o.playerId || null, name: o.name || null, type: o.type || null,
-        ucAmount: o.ucAmount || null, bundle: o.bundle || null, totalAmount: o.totalAmount || 0,
-        status: o.status || null, transactionId: o.transactionId || null,
-        screenshotUrl: o.screenshotUrl || null, created_at: createdAt, screens: screens
-      };
-    }));
+    const data = await Promise.all(
+      Array.from(ordersMap.values()).map(async (d) => {
+        const o = d.data();
+        let createdAt = null;
+        if (o.created_at && o.created_at.toDate) createdAt = o.created_at.toDate().toISOString();
+        const screensSnap = await firestore().collection("screenshots").where("orderId", "==", d.id).get();
+        const screens = screensSnap.docs.map((s) => ({ id: s.id, imageUrl: s.data().imageUrl }));
+        return {
+          id: d.id,
+          playerId: o.playerId || null,
+          name: o.name || null,
+          type: o.type || null,
+          ucAmount: o.ucAmount || null,
+          bundle: o.bundle || null,
+          totalAmount: o.totalAmount || 0,
+          status: o.status || null,
+          transactionId: o.transactionId || null,
+          screenshotUrl: o.screenshotUrl || null,
+          created_at: createdAt,
+          screens: screens,
+        };
+      })
+    );
 
     data.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
     res.json({ success: true, data });
-  } catch (e) { console.error(e); res.status(500).json({ success: false, message: "خطأ في جلب الشحنات" }); }
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, message: "خطأ في جلب الشحنات" });
+  }
 });
 
 app.get("/api/account/screens", requireUser, async (req, res) => {
   try {
     const userDoc = await firestore().collection("users").doc(req.user.uid).get();
-    if (!userDoc.exists) return res.status(404).json({ success: false, message: "المستخدم غير موجود" });
+    if (!userDoc.exists)
+      return res.status(404).json({ success: false, message: "المستخدم غير موجود" });
     const user = userDoc.data();
     const snap = await firestore().collection("screenshots").where("targetBaseId", "==", user.baseId).get();
-    const data = snap.docs.map(d => {
+    const data = snap.docs.map((d) => {
       const s = d.data();
       let createdAt = null;
       if (s.createdAt && s.createdAt.toDate) createdAt = s.createdAt.toDate().toISOString();
-      return { id: d.id, imageUrl: s.imageUrl, label: s.label || null, targetBaseId: s.targetBaseId || null, createdAt };
+      return {
+        id: d.id,
+        imageUrl: s.imageUrl,
+        label: s.label || null,
+        targetBaseId: s.targetBaseId || null,
+        createdAt,
+      };
     });
-    data.sort((a, b) => { if (!a.createdAt) return 1; if (!b.createdAt) return -1; return new Date(b.createdAt) - new Date(a.createdAt); });
+    data.sort((a, b) => {
+      if (!a.createdAt) return 1;
+      if (!b.createdAt) return -1;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
     res.json({ success: true, data });
-  } catch (e) { console.error(e); res.status(500).json({ success: false, message: "خطأ في جلب السكرينات" }); }
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, message: "خطأ في جلب السكرينات" });
+  }
 });
 
-// ==================== Order Creation (modified for Daftar Cash) ====================
+// ==================== Order Creation (Daftar Cash) ====================
 app.post("/api/order", upload.single("screenshot"), async (req, res) => {
   try {
     const { name, playerId, email, ucAmount, bundle, totalAmount, transactionId, couponCode, discountAmount } = req.body;
@@ -408,98 +643,158 @@ app.post("/api/order", upload.single("screenshot"), async (req, res) => {
       }
     } catch { /* ignore */ }
 
-    // 1. حفظ الطلب في Firestore (الحالة الأولية: بانتظار الدفع)
     const orderData = {
-      name, playerId, email, type, userId,
-      ucAmount: ucAmount || null, bundle: bundle || null, totalAmount: Number(totalAmount),
-      transactionId: transactionId || null, status: "لم يتم الدفع",
+      name,
+      playerId,
+      email,
+      type,
+      userId,
+      ucAmount: ucAmount || null,
+      bundle: bundle || null,
+      totalAmount: Number(totalAmount),
+      transactionId: transactionId || null,
+      status: "لم يتم الدفع",
       created_at: admin.firestore.FieldValue.serverTimestamp(),
-      couponCode: couponCode || null, discountAmount: discountAmount ? Number(discountAmount) : null
+      couponCode: couponCode || null,
+      discountAmount: discountAmount ? Number(discountAmount) : null,
     };
 
     const ref = await firestore().collection("orders").add(orderData);
 
-    // 2. استدعاء Daftar Cash لإنشاء صفحة الدفع
+    // استدعاء Daftar Cash لإنشاء صفحة الدفع
     const daftarRes = await fetch("https://www.daftarcash.com/api/v1/payments/create/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.DAFTAR_MERCHANT_API_KEY}`
+        "Authorization": `Bearer ${process.env.DAFTAR_MERCHANT_API_KEY}`,
       },
       body: JSON.stringify({
         amount: Number(totalAmount),
         order_id: ref.id,
         customer_email: email,
         customer_phone: playerId,
-        return_url: `${process.env.APP_BASE_URL || "https://your-domain.vercel.app"}/account`,
-        cancel_url: `${process.env.APP_BASE_URL || "https://your-domain.vercel.app"}/`
-      })
+        return_url: `${process.env.APP_BASE_URL || "https://john-pubg-store.vercel.app"}/account`,
+        cancel_url: `${process.env.APP_BASE_URL || "https://john-pubg-store.vercel.app"}/`,
+      }),
     });
 
-    const daftarData = await daftarRes.json();
+    // قراءة النص أولاً، لتجنب خطأ تحليل JSON
+    const daftarRawText = await daftarRes.text();
+    console.log("Daftar Cash create status:", daftarRes.status);
+    console.log("Daftar Cash create body:", daftarRawText);
 
-    if (!daftarRes.ok) {
-      console.error("Daftar Cash create payment failed:", daftarData);
-      // فشل إنشاء الدفع، حذف الطلب أو الاحتفاظ به حسب الحاجة
-      return res.status(500).json({ success: false, message: "فشل إنشاء صفحة الدفع، يرجى المحاولة لاحقاً" });
+    let daftarData = {};
+    if (daftarRawText.trim()) {
+      try {
+        daftarData = JSON.parse(daftarRawText);
+      } catch (parseErr) {
+        console.error("Daftar Cash JSON parse failed:", parseErr.message);
+        return res.status(500).json({
+          success: false,
+          message: "استجابة غير صالحة من بوابة الدفع",
+        });
+      }
     }
 
-    // ⚠️ يجب تأكيد اسم حقل رابط الدفع من وثائق Daftar Cash
-    const checkoutUrl = daftarData.checkout_url || daftarData.payment_url || daftarData.url || daftarData.data?.checkout_url;
+    if (!daftarRes.ok) {
+      console.error("Daftar Cash create failed:", daftarData);
+      return res.status(500).json({
+        success: false,
+        message: "فشل إنشاء صفحة الدفع، يرجى المحاولة لاحقاً",
+      });
+    }
+
+    // تجربة أسماء حقول متعددة لرابط الدفع
+    const checkoutUrl =
+      daftarData.checkout_url ||
+      daftarData.payment_url ||
+      daftarData.url ||
+      daftarData.checkoutUrl ||
+      daftarData.paymentUrl ||
+      (daftarData.data && (daftarData.data.checkout_url || daftarData.data.url));
 
     if (!checkoutUrl) {
       console.error("Daftar Cash response missing checkout URL:", daftarData);
       return res.status(500).json({ success: false, message: "فشل إنشاء صفحة الدفع" });
     }
 
-    // 3. إرسال إشعار تيليجرام (اختياري)
-    telegramNotify(`🧾 طلب جديد (بانتظار الدفع)\nالاسم: ${name}\nايدي اللاعب: ${playerId}\nالبريد: ${email}\nالنوع: ${type}\nالإجمالي: ${totalAmount}\nID: ${ref.id}`).catch(e => console.error(e));
+    telegramNotify(
+      `🧾 طلب جديد (بانتظار الدفع)\nالاسم: ${name}\nايدي اللاعب: ${playerId}\nالبريد: ${email}\nالنوع: ${type}\nالإجمالي: ${totalAmount}\nID: ${ref.id}`
+    ).catch((e) => console.error(e));
 
-    // 4. إرجاع رابط الدفع للواجهة الأمامية
     return res.status(200).json({
       success: true,
       id: ref.id,
       checkoutUrl: checkoutUrl,
-      message: "تم إنشاء الطلب بنجاح"
+      message: "تم إنشاء الطلب بنجاح",
     });
-
   } catch (err) {
     console.error("Error in /api/order:", err);
-    return res.status(500).json({ success: false, message: "حدث خطأ أثناء الحفظ: " + (err.message || "خطأ غير معروف") });
+    return res.status(500).json({
+      success: false,
+      message: "حدث خطأ أثناء الحفظ: " + (err.message || "خطأ غير معروف"),
+    });
   }
 });
 
 app.get("/api/order/:id", async (req, res) => {
   try {
     const doc = await firestore().collection("orders").doc(req.params.id).get();
-    if (!doc.exists) return res.status(404).json({ success: false, message: "الطلب غير موجود" });
+    if (!doc.exists)
+      return res.status(404).json({ success: false, message: "الطلب غير موجود" });
     const data = doc.data();
-    if (data.created_at && data.created_at.toDate) data.created_at = data.created_at.toDate().toISOString();
+    if (data.created_at && data.created_at.toDate)
+      data.created_at = data.created_at.toDate().toISOString();
     res.json({ success: true, data: { id: doc.id, ...data } });
-  } catch (err) { res.status(500).json({ success: false, message: "خطأ في جلب الطلب" }); }
+  } catch (err) {
+    res.status(500).json({ success: false, message: "خطأ في جلب الطلب" });
+  }
 });
 
 // ==================== Inquiry & Suggestion ====================
 app.post("/api/inquiry", async (req, res) => {
   try {
     const { name, email, message } = req.body;
-    if (!email || !message) return res.status(400).json({ success: false, message: "البريد الإلكتروني والرسالة مطلوبان" });
-    const inquiryData = { name: name || "غير مذكور", email, message, status: "قيد الانتظار", created_at: admin.firestore.FieldValue.serverTimestamp() };
+    if (!email || !message)
+      return res.status(400).json({ success: false, message: "البريد الإلكتروني والرسالة مطلوبان" });
+    const inquiryData = {
+      name: name || "غير مذكور",
+      email,
+      message,
+      status: "قيد الانتظار",
+      created_at: admin.firestore.FieldValue.serverTimestamp(),
+    };
     const ref = await firestore().collection("inquiries").add(inquiryData);
-    telegramNotify(`📩 استفسار جديد\nالاسم: ${name || "غير مذكور"}\nالبريد: ${email}\nالرسالة: ${message.substring(0, 100)}`).catch(e => console.error(e));
+    telegramNotify(
+      `📩 استفسار جديد\nالاسم: ${name || "غير مذكور"}\nالبريد: ${email}\nالرسالة: ${message.substring(0, 100)}`
+    ).catch((e) => console.error(e));
     return res.status(200).json({ success: true, id: ref.id, message: "تم استلام استفسارك بنجاح" });
-  } catch (err) { console.error(err); return res.status(500).json({ success: false, message: "حدث خطأ" }); }
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: "حدث خطأ" });
+  }
 });
 
 app.post("/api/suggestion", async (req, res) => {
   try {
     const { name, contact, message } = req.body;
-    if (!name || !contact || !message) return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة" });
-    const suggestionData = { name, contact, message, created_at: admin.firestore.FieldValue.serverTimestamp() };
+    if (!name || !contact || !message)
+      return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة" });
+    const suggestionData = {
+      name,
+      contact,
+      message,
+      created_at: admin.firestore.FieldValue.serverTimestamp(),
+    };
     const ref = await firestore().collection("suggestions").add(suggestionData);
-    telegramNotify(`💡 اقتراح جديد\nالاسم: ${name}\nوسيلة التواصل: ${contact}\nالاقتراح: ${message.substring(0, 100)}`).catch(e => console.error(e));
+    telegramNotify(
+      `💡 اقتراح جديد\nالاسم: ${name}\nوسيلة التواصل: ${contact}\nالاقتراح: ${message.substring(0, 100)}`
+    ).catch((e) => console.error(e));
     return res.status(200).json({ success: true, id: ref.id, message: "شكراً لك! تم استلام اقتراحك" });
-  } catch (err) { console.error(err); return res.status(500).json({ success: false, message: "حدث خطأ" }); }
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: "حدث خطأ" });
+  }
 });
 
 // ==================== Player Lookup ====================
@@ -509,22 +804,26 @@ const MAX_REQUESTS_PER_WINDOW = 10;
 
 app.get("/api/lookup-player/:uid", async (req, res) => {
   try {
-    const clientIp = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+    const clientIp = req.ip || req.headers["x-forwarded-for"] || "unknown";
     const now = Date.now();
     if (!lookupRateLimit.has(clientIp)) lookupRateLimit.set(clientIp, []);
-    const requestTimes = lookupRateLimit.get(clientIp).filter(time => now - time < RATE_LIMIT_WINDOW);
-    if (requestTimes.length >= MAX_REQUESTS_PER_WINDOW) return res.status(429).json({ success: false, message: "طلبات كثيرة جداً. يرجى الانتظار دقيقة." });
+    const requestTimes = lookupRateLimit.get(clientIp).filter((time) => now - time < RATE_LIMIT_WINDOW);
+    if (requestTimes.length >= MAX_REQUESTS_PER_WINDOW)
+      return res.status(429).json({ success: false, message: "طلبات كثيرة جداً. يرجى الانتظار دقيقة." });
     requestTimes.push(now);
     lookupRateLimit.set(clientIp, requestTimes);
 
     const uid = req.params.uid;
-    if (!uid || isNaN(uid) || uid.length < 5) return res.status(400).json({ success: false, message: "يرجى إدخال ID صحيح" });
+    if (!uid || isNaN(uid) || uid.length < 5)
+      return res.status(400).json({ success: false, message: "يرجى إدخال ID صحيح" });
 
     const apiKey = process.env.RAPIDAPI_KEY;
-    if (!apiKey) return res.status(500).json({ success: false, message: "خدمة البحث غير مهيأة حالياً" });
+    if (!apiKey)
+      return res.status(500).json({ success: false, message: "خدمة البحث غير مهيأة حالياً" });
 
     const response = await fetch(`https://id-game-checker.p.rapidapi.com/pubgm-global/${uid}`, {
-      method: 'GET', headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': 'id-game-checker.p.rapidapi.com' }
+      method: "GET",
+      headers: { "X-RapidAPI-Key": apiKey, "X-RapidAPI-Host": "id-game-checker.p.rapidapi.com" },
     });
     const data = await response.json();
     if (data && data.error === false && data.data && data.data.username) {
@@ -532,52 +831,76 @@ app.get("/api/lookup-player/:uid", async (req, res) => {
     } else {
       return res.status(404).json({ success: false, message: "لم يتم العثور على اللاعب، تأكد من الـ ID" });
     }
-  } catch (error) { console.error("Lookup error:", error); return res.status(500).json({ success: false, message: "حدث خطأ أثناء الاتصال بالخادم" }); }
+  } catch (error) {
+    console.error("Lookup error:", error);
+    return res.status(500).json({ success: false, message: "حدث خطأ أثناء الاتصال بالخادم" });
+  }
 });
 
 // ==================== Admin Auth ====================
 app.post("/api/admin/login", async (req, res) => {
   try {
     const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ success: false, message: "بيانات الدخول مطلوبة" });
-    if (username !== process.env.ADMIN_USER) return res.status(401).json({ success: false, message: "بيانات الدخول غير صحيحة" });
+    if (!username || !password)
+      return res.status(400).json({ success: false, message: "بيانات الدخول مطلوبة" });
+    if (username !== process.env.ADMIN_USER)
+      return res.status(401).json({ success: false, message: "بيانات الدخول غير صحيحة" });
     const isMatch = await bcrypt.compare(password, process.env.ADMIN_PASS_HASH);
-    if (!isMatch) return res.status(401).json({ success: false, message: "بيانات الدخول غير صحيحة" });
+    if (!isMatch)
+      return res.status(401).json({ success: false, message: "بيانات الدخول غير صحيحة" });
     const token = jwt.sign({ role: "admin", u: username }, process.env.ADMIN_JWT_SECRET, { expiresIn: "7d" });
     setAdminCookie(res, token);
     return res.json({ success: true });
-  } catch (error) { console.error("Admin login error:", error); return res.status(500).json({ success: false, message: "حدث خطأ" }); }
+  } catch (error) {
+    console.error("Admin login error:", error);
+    return res.status(500).json({ success: false, message: "حدث خطأ" });
+  }
 });
 
-app.post("/api/admin/logout", requireAdmin, (req, res) => { res.clearCookie("admin_token"); res.json({ success: true }); });
+app.post("/api/admin/logout", requireAdmin, (req, res) => {
+  res.clearCookie("admin_token");
+  res.json({ success: true });
+});
 
 // ==================== Admin Data Routes ====================
 app.get("/api/admin/orders", requireAdmin, async (req, res) => {
   try {
     const snap = await firestore().collection("orders").orderBy("created_at", "desc").get();
-    res.json({ success: true, data: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
-  } catch (e) { console.error(e); res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات" }); }
+    res.json({ success: true, data: snap.docs.map((d) => ({ id: d.id, ...d.data() })) });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات" });
+  }
 });
 
 app.get("/api/admin/inquiries", requireAdmin, async (req, res) => {
   try {
     const snap = await firestore().collection("inquiries").orderBy("created_at", "desc").get();
-    res.json({ success: true, data: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
-  } catch (e) { console.error(e); res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات" }); }
+    res.json({ success: true, data: snap.docs.map((d) => ({ id: d.id, ...d.data() })) });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات" });
+  }
 });
 
 app.get("/api/admin/suggestions", requireAdmin, async (req, res) => {
   try {
     const snap = await firestore().collection("suggestions").orderBy("created_at", "desc").get();
-    res.json({ success: true, data: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
-  } catch (e) { console.error(e); res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات" }); }
+    res.json({ success: true, data: snap.docs.map((d) => ({ id: d.id, ...d.data() })) });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات" });
+  }
 });
 
 app.get("/api/admin/messages", requireAdmin, async (req, res) => {
   try {
     const snap = await firestore().collection("messages").orderBy("sent_at", "desc").get();
-    res.json({ success: true, data: snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) });
-  } catch (err) { console.error(err); res.status(500).json({ success: false, message: "فشل جلب الرسائل" }); }
+    res.json({ success: true, data: snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "فشل جلب الرسائل" });
+  }
 });
 
 app.get("/api/admin/users", requireAdmin, async (req, res) => {
@@ -585,13 +908,27 @@ app.get("/api/admin/users", requireAdmin, async (req, res) => {
     const snap = await firestore().collection("users").orderBy("createdAt", "desc").get();
     const users = snap.docs.map((d) => {
       const u = d.data();
-      let createdAt = null, lastLoginAt = null;
+      let createdAt = null,
+        lastLoginAt = null;
       if (u.createdAt && u.createdAt.toDate) createdAt = u.createdAt.toDate().toISOString();
       if (u.lastLoginAt && u.lastLoginAt.toDate) lastLoginAt = u.lastLoginAt.toDate().toISOString();
-      return { id: d.id, name: u.name || null, email: u.email || null, baseId: u.baseId || null, role: u.role || "user", isActive: u.isActive !== false, loginCount: u.loginCount || 0, createdAt, lastLoginAt };
+      return {
+        id: d.id,
+        name: u.name || null,
+        email: u.email || null,
+        baseId: u.baseId || null,
+        role: u.role || "user",
+        isActive: u.isActive !== false,
+        loginCount: u.loginCount || 0,
+        createdAt,
+        lastLoginAt,
+      };
     });
     res.json({ success: true, data: users });
-  } catch (e) { console.error(e); res.status(500).json({ success: false, message: "خطأ في جلب المستخدمين" }); }
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, message: "خطأ في جلب المستخدمين" });
+  }
 });
 
 app.get("/api/admin/login-logs", requireAdmin, async (req, res) => {
@@ -602,10 +939,24 @@ app.get("/api/admin/login-logs", requireAdmin, async (req, res) => {
       const l = d.data();
       let createdAt = null;
       if (l.createdAt && l.createdAt.toDate) createdAt = l.createdAt.toDate().toISOString();
-      return { id: d.id, userId: l.userId || null, name: l.name || null, email: l.email || null, event: l.event || "login", success: !!l.success, reason: l.reason || null, ip: l.ip || null, userAgent: l.userAgent || null, createdAt };
+      return {
+        id: d.id,
+        userId: l.userId || null,
+        name: l.name || null,
+        email: l.email || null,
+        event: l.event || "login",
+        success: !!l.success,
+        reason: l.reason || null,
+        ip: l.ip || null,
+        userAgent: l.userAgent || null,
+        createdAt,
+      };
     });
     res.json({ success: true, data: logs });
-  } catch (e) { console.error(e); res.status(500).json({ success: false, message: "خطأ في جلب سجل الدخول" }); }
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, message: "خطأ في جلب سجل الدخول" });
+  }
 });
 
 app.get("/api/admin/users/:id", requireAdmin, async (req, res) => {
@@ -614,12 +965,30 @@ app.get("/api/admin/users/:id", requireAdmin, async (req, res) => {
     if (!doc.exists) return res.status(404).json({ success: false, message: "المستخدم غير موجود" });
     const u = doc.data();
     const ordersSnap = await firestore().collection("orders").where("userId", "==", req.params.id).get();
-    const orders = ordersSnap.docs.map(o => ({ id: o.id, ...o.data() }));
-    let createdAt = null, lastLoginAt = null;
+    const orders = ordersSnap.docs.map((o) => ({ id: o.id, ...o.data() }));
+    let createdAt = null,
+      lastLoginAt = null;
     if (u.createdAt && u.createdAt.toDate) createdAt = u.createdAt.toDate().toISOString();
     if (u.lastLoginAt && u.lastLoginAt.toDate) lastLoginAt = u.lastLoginAt.toDate().toISOString();
-    res.json({ success: true, data: { id: doc.id, name: u.name || null, email: u.email || null, baseId: u.baseId || null, role: u.role || "user", isActive: u.isActive !== false, loginCount: u.loginCount || 0, createdAt, lastLoginAt, orders } });
-  } catch (e) { console.error(e); res.status(500).json({ success: false, message: "خطأ في جلب بيانات المستخدم" }); }
+    res.json({
+      success: true,
+      data: {
+        id: doc.id,
+        name: u.name || null,
+        email: u.email || null,
+        baseId: u.baseId || null,
+        role: u.role || "user",
+        isActive: u.isActive !== false,
+        loginCount: u.loginCount || 0,
+        createdAt,
+        lastLoginAt,
+        orders,
+      },
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, message: "خطأ في جلب بيانات المستخدم" });
+  }
 });
 
 app.post("/api/admin/update-status", requireAdmin, async (req, res) => {
@@ -628,7 +997,10 @@ app.post("/api/admin/update-status", requireAdmin, async (req, res) => {
     if (!id || !status) return res.status(400).json({ success: false, message: "معرّف الطلب والحالة مطلوبان" });
     await firestore().collection("orders").doc(id).update({ status });
     res.json({ success: true });
-  } catch (e) { console.error(e); res.status(500).json({ success: false, message: "حدث خطأ أثناء التحديث" }); }
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, message: "حدث خطأ أثناء التحديث" });
+  }
 });
 
 app.delete("/api/admin/delete-order", requireAdmin, async (req, res) => {
@@ -637,7 +1009,10 @@ app.delete("/api/admin/delete-order", requireAdmin, async (req, res) => {
     if (!id) return res.status(400).json({ success: false, message: "معرّف الطلب مطلوب" });
     await firestore().collection("orders").doc(id).delete();
     res.json({ success: true });
-  } catch (e) { console.error(e); res.status(500).json({ success: false, message: "حدث خطأ أثناء الحذف" }); }
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, message: "حدث خطأ أثناء الحذف" });
+  }
 });
 
 app.delete("/api/admin/delete-inquiry", requireAdmin, async (req, res) => {
@@ -646,7 +1021,10 @@ app.delete("/api/admin/delete-inquiry", requireAdmin, async (req, res) => {
     if (!id) return res.status(400).json({ success: false, message: "معرّف الاستفسار مطلوب" });
     await firestore().collection("inquiries").doc(id).delete();
     res.json({ success: true });
-  } catch (e) { console.error(e); res.status(500).json({ success: false, message: "حدث خطأ أثناء الحذف" }); }
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, message: "حدث خطأ أثناء الحذف" });
+  }
 });
 
 app.delete("/api/admin/delete-suggestion", requireAdmin, async (req, res) => {
@@ -655,7 +1033,10 @@ app.delete("/api/admin/delete-suggestion", requireAdmin, async (req, res) => {
     if (!id) return res.status(400).json({ success: false, message: "معرّف الاقتراح مطلوب" });
     await firestore().collection("suggestions").doc(id).delete();
     res.json({ success: true });
-  } catch (e) { console.error(e); res.status(500).json({ success: false, message: "حدث خطأ أثناء الحذف" }); }
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, message: "حدث خطأ أثناء الحذف" });
+  }
 });
 
 app.delete("/api/admin/delete-message", requireAdmin, async (req, res) => {
@@ -664,41 +1045,57 @@ app.delete("/api/admin/delete-message", requireAdmin, async (req, res) => {
     if (!id) return res.status(400).json({ success: false, message: "معرّف الرسالة مطلوب" });
     await firestore().collection("messages").doc(id).delete();
     res.json({ success: true });
-  } catch (err) { console.error(err); res.status(500).json({ success: false, message: "فشل حذف الرسالة" }); }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "فشل حذف الرسالة" });
+  }
 });
 
 app.post("/api/admin/reply-inquiry", requireAdmin, async (req, res) => {
   try {
     const { inquiryId, email, message, reply } = req.body;
-    if (!inquiryId || !email || !message || !reply) return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة" });
+    if (!inquiryId || !email || !message || !reply)
+      return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة" });
     await transporter.sendMail({
-      from: `"فريق الدعم" <${process.env.SMTP_USER || process.env.EMAIL_USER}>`, to: email, subject: "رد على استفسارك",
-      html: `<div dir="rtl"><h2>شكراً لتواصلك معنا</h2><p><strong>استفسارك:</strong></p><p>${message}</p><h3>رد الفريق:</h3><p>${reply}</p></div>`
+      from: `"فريق الدعم" <${process.env.SMTP_USER || process.env.EMAIL_USER}>`,
+      to: email,
+      subject: "رد على استفسارك",
+      html: `<div dir="rtl"><h2>شكراً لتواصلك معنا</h2><p><strong>استفسارك:</strong></p><p>${message}</p><h3>رد الفريق:</h3><p>${reply}</p></div>`,
     });
     await firestore().collection("inquiries").doc(inquiryId).update({ status: "تم الرد" });
     res.json({ success: true });
-  } catch (e) { console.error(e); res.status(500).json({ success: false, message: "فشل إرسال الرد" }); }
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, message: "فشل إرسال الرد" });
+  }
 });
 
 app.post("/api/admin/send-message", requireAdmin, async (req, res) => {
   try {
     const { email, subject, message } = req.body;
-    if (!email || !subject || !message) return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة" });
+    if (!email || !subject || !message)
+      return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة" });
     const emailRegex = /^[^\s@]+@([^\s@.,]+\.)+[^\s@.,]{2,}$/;
-    if (!emailRegex.test(email)) return res.status(400).json({ success: false, message: "صيغة البريد الإلكتروني غير صحيحة" });
+    if (!emailRegex.test(email))
+      return res.status(400).json({ success: false, message: "صيغة البريد الإلكتروني غير صحيحة" });
 
     const messageData = { to: email, subject, message, sent_at: admin.firestore.FieldValue.serverTimestamp(), status: "pending" };
     const docRef = await firestore().collection("messages").add(messageData);
     const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USER;
     const smtpPass = process.env.SMTP_PASS || process.env.EMAIL_PASS;
-    if (!smtpUser || !smtpPass) { await docRef.update({ status: "failed", error: "SMTP configuration missing" }); return res.status(500).json({ success: false, message: "خادم البريد الإلكتروني غير مهيأ." }); }
+    if (!smtpUser || !smtpPass) {
+      await docRef.update({ status: "failed", error: "SMTP configuration missing" });
+      return res.status(500).json({ success: false, message: "خادم البريد الإلكتروني غير مهيأ." });
+    }
 
     try {
       const info = await transporter.sendMail({
-        from: `"John Store فريق الدعم" <${smtpUser}>`, to: email, subject,
-        attachments: [{ filename: 'john-store.png', path: 'https://i.postimg.cc/x8xtX2KR/john-store.png', cid: 'johnstore-logo' }],
-        html: `<div style="font-family: 'Cairo', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden;" dir="rtl"><div style="background-color: #1a1a2e; padding: 35px 20px; text-align: center;"><img src="cid:johnstore-logo" alt="John Store" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #ffb800;"><h1 style="color: #ffffff;">John <span style="color: #ffb800;">Store</span></h1></div><div style="padding: 30px 20px;"><h2 style="color: #333333;">${subject}</h2><div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; border-right: 4px solid #ffb800;"><p style="color: #444444; white-space: pre-wrap;">${String(message).replace(/\n/g, "<br>").replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p></div></div></div>`,
-        text: `John Store\n\n${message}`
+        from: `"John Store فريق الدعم" <${smtpUser}>`,
+        to: email,
+        subject,
+        attachments: [{ filename: "john-store.png", path: "https://i.postimg.cc/x8xtX2KR/john-store.png", cid: "johnstore-logo" }],
+        html: `<div style="font-family: 'Cairo', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden;" dir="rtl"><div style="background-color: #1a1a2e; padding: 35px 20px; text-align: center;"><img src="cid:johnstore-logo" alt="John Store" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #ffb800;"><h1 style="color: #ffffff;">John <span style="color: #ffb800;">Store</span></h1></div><div style="padding: 30px 20px;"><h2 style="color: #333333;">${subject}</h2><div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; border-right: 4px solid #ffb800;"><p style="color: #444444; white-space: pre-wrap;">${String(message).replace(/\n/g, "<br>").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p></div></div></div>`,
+        text: `John Store\n\n${message}`,
       });
       await docRef.update({ status: "sent", message_id: info.messageId, sent_at: admin.firestore.FieldValue.serverTimestamp() });
       return res.json({ success: true, message: "تم إرسال الرسالة بنجاح", messageId: info.messageId });
@@ -706,94 +1103,150 @@ app.post("/api/admin/send-message", requireAdmin, async (req, res) => {
       await docRef.update({ status: "failed", error: smtpError.message || "SMTP sending failed" });
       return res.status(500).json({ success: false, message: "فشل إرسال الرسالة" });
     }
-  } catch (err) { console.error(err); return res.status(500).json({ success: false, message: "حدث خطأ داخلي" }); }
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: "حدث خطأ داخلي" });
+  }
 });
 
 // ==================== Screenshots ====================
 app.post("/api/admin/screens", requireAdmin, upload.single("image"), async (req, res) => {
   try {
     const { targetBaseId, orderId, label } = req.body;
-    if (!targetBaseId || !orderId) return res.status(400).json({ success: false, message: "ID المستخدم ورقم الطلب مطلوبان" });
+    if (!targetBaseId || !orderId)
+      return res.status(400).json({ success: false, message: "ID المستخدم ورقم الطلب مطلوبان" });
     if (!req.file) return res.status(400).json({ success: false, message: "الصورة مطلوبة" });
     const usersSnap = await firestore().collection("users").where("baseId", "==", targetBaseId).limit(1).get();
     if (usersSnap.empty) return res.status(404).json({ success: false, message: "لا يوجد مستخدم بهذا الـ ID" });
     const imageUrl = await uploadScreenshotToCloudinary(req.file);
     const ref = await firestore().collection("screenshots").add({
-      imageUrl, label: label || null, targetBaseId, orderId, targetUserId: usersSnap.docs[0].id, uploadedBy: "admin",
-      createdAt: admin.firestore.FieldValue.serverTimestamp()
+      imageUrl,
+      label: label || null,
+      targetBaseId,
+      orderId,
+      targetUserId: usersSnap.docs[0].id,
+      uploadedBy: "admin",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     res.json({ success: true, id: ref.id, imageUrl });
-  } catch (e) { console.error(e); res.status(500).json({ success: false, message: "فشل رفع السكرين" }); }
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, message: "فشل رفع السكرين" });
+  }
 });
 
 app.get("/api/admin/screens", requireAdmin, async (req, res) => {
   try {
     const snap = await firestore().collection("screenshots").orderBy("createdAt", "desc").get();
-    const data = snap.docs.map(d => {
+    const data = snap.docs.map((d) => {
       const s = d.data();
       let createdAt = null;
       if (s.createdAt && s.createdAt.toDate) createdAt = s.createdAt.toDate().toISOString();
-      return { id: d.id, imageUrl: s.imageUrl, label: s.label || null, targetBaseId: s.targetBaseId || null, orderId: s.orderId || null, createdAt };
+      return {
+        id: d.id,
+        imageUrl: s.imageUrl,
+        label: s.label || null,
+        targetBaseId: s.targetBaseId || null,
+        orderId: s.orderId || null,
+        createdAt,
+      };
     });
     res.json({ success: true, data });
-  } catch (e) { console.error(e); res.status(500).json({ success: false, message: "خطأ في جلب السكرينات" }); }
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, message: "خطأ في جلب السكرينات" });
+  }
 });
 
 app.delete("/api/admin/screens/:id", requireAdmin, async (req, res) => {
   try {
     await firestore().collection("screenshots").doc(req.params.id).delete();
     res.json({ success: true });
-  } catch (e) { console.error(e); res.status(500).json({ success: false, message: "فشل حذف السكرين" }); }
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, message: "فشل حذف السكرين" });
+  }
 });
 
 // ==================== Coupons ====================
-function getCouponsCollection() { return firestore().collection("coupons"); }
+function getCouponsCollection() {
+  return firestore().collection("coupons");
+}
 
 app.post("/api/admin/coupons", requireAdmin, async (req, res) => {
   try {
     const { code, discountPercent, description, expiresAt } = req.body;
-    if (!code || !discountPercent) return res.status(400).json({ success: false, message: "كود الخصم ونسبة الخصم مطلوبان" });
+    if (!code || !discountPercent)
+      return res.status(400).json({ success: false, message: "كود الخصم ونسبة الخصم مطلوبان" });
     const existing = await getCouponsCollection().where("code", "==", code.toUpperCase()).get();
     if (!existing.empty) return res.status(400).json({ success: false, message: "هذا الكود موجود بالفعل" });
-    const couponData = { code: code.toUpperCase(), discountPercent: Number(discountPercent), description: description || "", createdAt: admin.firestore.FieldValue.serverTimestamp(), expiresAt: expiresAt ? admin.firestore.Timestamp.fromDate(new Date(expiresAt)) : null, usedCount: 0, isActive: true };
+    const couponData = {
+      code: code.toUpperCase(),
+      discountPercent: Number(discountPercent),
+      description: description || "",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      expiresAt: expiresAt ? admin.firestore.Timestamp.fromDate(new Date(expiresAt)) : null,
+      usedCount: 0,
+      isActive: true,
+    };
     const ref = await getCouponsCollection().add(couponData);
     res.json({ success: true, id: ref.id });
-  } catch (err) { console.error(err); res.status(500).json({ success: false, message: err.message }); }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 app.get("/api/admin/coupons", requireAdmin, async (req, res) => {
   try {
     const snap = await getCouponsCollection().orderBy("createdAt", "desc").get();
-    const coupons = snap.docs.map(doc => {
+    const coupons = snap.docs.map((doc) => {
       const data = doc.data();
       let expiryDate = null;
       if (data.expiresAt && data.expiresAt.toDate) expiryDate = data.expiresAt.toDate().toISOString();
       return { id: doc.id, ...data, expiresAt: expiryDate };
     });
     res.json({ success: true, data: coupons });
-  } catch (err) { console.error(err); res.status(500).json({ success: false, message: err.message }); }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 app.delete("/api/admin/coupons/:id", requireAdmin, async (req, res) => {
   try {
     await getCouponsCollection().doc(req.params.id).delete();
     res.json({ success: true });
-  } catch (err) { console.error(err); res.status(500).json({ success: false, message: err.message }); }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 app.post("/api/verify-coupon", async (req, res) => {
   try {
     const { code, originalAmount } = req.body;
-    if (!code || !originalAmount) return res.status(400).json({ success: false, message: "الكود والمبلغ مطلوبان" });
+    if (!code || !originalAmount)
+      return res.status(400).json({ success: false, message: "الكود والمبلغ مطلوبان" });
     const snap = await getCouponsCollection().where("code", "==", code.toUpperCase()).where("isActive", "==", true).limit(1).get();
     if (snap.empty) return res.status(404).json({ success: false, message: "الكوبون غير صالح أو منتهي الصلاحية" });
     const couponDoc = snap.docs[0];
     const coupon = { id: couponDoc.id, ...couponDoc.data() };
-    if (coupon.expiresAt && coupon.expiresAt.toDate && coupon.expiresAt.toDate() < new Date()) return res.status(400).json({ success: false, message: "انتهت صلاحية الكوبون" });
+    if (coupon.expiresAt && coupon.expiresAt.toDate && coupon.expiresAt.toDate() < new Date())
+      return res.status(400).json({ success: false, message: "انتهت صلاحية الكوبون" });
     const discount = (Number(originalAmount) * coupon.discountPercent) / 100;
     const newAmount = Number(originalAmount) - discount;
-    res.json({ success: true, discount: discount.toFixed(2), newTotal: newAmount.toFixed(2), discountPercent: coupon.discountPercent, couponCode: coupon.code });
-  } catch (err) { console.error(err); res.status(500).json({ success: false, message: err.message }); }
+    res.json({
+      success: true,
+      discount: discount.toFixed(2),
+      newTotal: newAmount.toFixed(2),
+      discountPercent: coupon.discountPercent,
+      couponCode: coupon.code,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 app.post("/api/use-coupon", async (req, res) => {
@@ -803,7 +1256,10 @@ app.post("/api/use-coupon", async (req, res) => {
     const snap = await getCouponsCollection().where("code", "==", code.toUpperCase()).limit(1).get();
     if (!snap.empty) await snap.docs[0].ref.update({ usedCount: admin.firestore.FieldValue.increment(1) });
     res.json({ success: true });
-  } catch (err) { console.error(err); res.json({ success: false }); }
+  } catch (err) {
+    console.error(err);
+    res.json({ success: false });
+  }
 });
 
 module.exports = app;
