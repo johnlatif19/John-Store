@@ -185,14 +185,10 @@ document.getElementById('orderForm').addEventListener('submit', async (e) => {
     if (!response.ok) throw new Error(result.message || 'خطأ في الخادم');
     if (result.success) {
       currentOrderId = result.id;
-      if (result.checkoutUrl) {
-        showToast('تم بنجاح', 'جاري التحويل لصفحة الدفع...', 'success');
-        setTimeout(() => {
-          window.location.href = result.checkoutUrl;
-        }, 1200);
-      } else {
-        throw new Error('لم يتم استلام رابط الدفع من الخادم');
-      }
+      showToast('تم بنجاح', 'جاري التوجيه لصفحة الدفع...', 'success');
+      setTimeout(() => {
+        window.location.href = `pay.html?orderId=${encodeURIComponent(currentOrderId)}`;
+      }, 1500);
     } else {
       throw new Error(result.message || 'خطأ غير معروف');
     }
