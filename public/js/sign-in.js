@@ -1,7 +1,6 @@
 (function () {
   'use strict';
 
-  // ====== Elements ======
   const form = document.getElementById('signUpForm');
   const nameInput = document.getElementById('signUpName');
   const emailInput = document.getElementById('signUpEmail');
@@ -22,36 +21,29 @@
   const alertBox = document.getElementById('authAlert');
   const alertText = document.getElementById('authAlertText');
 
-  // ====== Alert helper ======
   let alertTimer = null;
   function showAlert(type, message) {
     alertBox.className = 'auth-alert ' + type + ' show';
     alertText.textContent = message;
     const icon = alertBox.querySelector('i');
     if (icon) {
-      icon.className = type === 'success'
-        ? 'fas fa-check-circle'
-        : 'fas fa-exclamation-circle';
+      icon.className = type === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-circle';
     }
     clearTimeout(alertTimer);
     alertTimer = setTimeout(() => alertBox.classList.remove('show'), 5000);
   }
 
-  // ====== Toggle password visibility ======
   function bindToggle(btn, input) {
     if (!btn || !input) return;
     btn.addEventListener('click', () => {
       const isPassword = input.type === 'password';
       input.type = isPassword ? 'text' : 'password';
-      btn.innerHTML = isPassword
-        ? '<i class="fas fa-eye-slash"></i>'
-        : '<i class="fas fa-eye"></i>';
+      btn.innerHTML = isPassword ? '<i class="fas fa-eye-slash"></i>' : '<i class="fas fa-eye"></i>';
     });
   }
   bindToggle(togglePassword, passwordInput);
   bindToggle(togglePasswordConfirm, confirmInput);
 
-  // ====== Validation helpers ======
   const emailRegex = /^[^\s@]+@([^\s@.,]+\.)+[^\s@.,]{2,}$/;
 
   function setNameHint(message, type) {
@@ -67,7 +59,6 @@
     confirmHint.className = 'field-hint ' + (type || '');
   }
 
-  // ====== Password strength ======
   const rules = {
     length: (v) => v.length >= 8,
     upper: (v) => /[A-Z]/.test(v),
@@ -105,7 +96,6 @@
       strengthText.textContent = 'قوة كلمة المرور: ' + label + ' (' + score + '/5)';
     }
 
-    // Update rule items
     Array.from(rulesList.querySelectorAll('li')).forEach((li) => {
       const ruleKey = li.getAttribute('data-rule');
       if (passed[ruleKey]) li.classList.add('pass');
@@ -115,7 +105,6 @@
     return { level, label, passed, score };
   }
 
-  // ====== Field events ======
   nameInput.addEventListener('input', () => {
     const v = nameInput.value.trim();
     nameInput.classList.remove('valid', 'invalid');
@@ -177,7 +166,6 @@
 
   confirmInput.addEventListener('input', validateConfirm);
 
-  // ====== Submit ======
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -185,11 +173,17 @@
     const email = emailInput.value.trim().toLowerCase();
     const password = passwordInput.value;
     const confirm = confirmInput.value;
+    const customId = document.getElementById('signUpId').value.trim();
 
-    // Full validation before submit
     if (name.length < 3) {
       showAlert('error', 'الاسم يجب أن يكون 3 أحرف على الأقل');
       nameInput.focus();
+      return;
+    }
+
+        if (!customId || customId.length < 5) {
+      showAlert('error', 'يرجى إدخال ID الحساب بشكل صحيح (5 أرقام على الأقل)');
+      document.getElementById('signUpId').focus();
       return;
     }
     if (!emailRegex.test(email)) {
@@ -209,7 +203,6 @@
       return;
     }
 
-    // Disable button
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<span class="spinner"></span> جاري إنشاء الحساب...';
 
@@ -218,7 +211,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ name, email, password })
+        body: JSON.stringify({ name, email, password, customId })
       });
 
       let data = null;
@@ -227,9 +220,8 @@
 
       if (res.ok && data && data.success) {
         showAlert('success', 'تم إنشاء الحساب بنجاح! جاري التحويل...');
-        // Redirect to store or account
         setTimeout(() => {
-          window.location.href = data.redirect || '/account';
+          window.location.href = data.redirect || '/';
         }, 1200);
       } else {
         throw new Error((data && data.message) || 'فشل إنشاء الحساب');
@@ -242,6 +234,5 @@
     }
   });
 
-  // ====== Init ======
   updateStrengthUI('');
 })();

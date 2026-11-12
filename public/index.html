@@ -41,7 +41,13 @@
           <span class="logo-sub">PUBG UC</span>
         </div>
       </a>
-      <div class="header-status">
+      
+      <div class="header-actions" id="headerAuthArea" style="display: none;">
+        <a href="/account" class="header-btn account-btn"><i class="fas fa-user"></i> حسابي</a>
+        <button onclick="logoutUser()" class="header-btn logout-btn"><i class="fas fa-sign-out-alt"></i> خروج</button>
+      </div>
+
+      <div class="header-status" id="headerStatusArea">
         <span class="live-dot"></span>
         متصل الآن • الدعم متاح
       </div>
@@ -266,7 +272,6 @@
 
         <form id="orderForm">
           
-          <!-- حقل الاسم (مقفول ومخصص للعرض فقط) -->
           <div class="field">
             <label><i class="fas fa-user"></i> الاسم داخل اللعبة</label>
             <input type="text" id="name" placeholder="سيتم جلب الاسم تلقائياً..." required readonly>

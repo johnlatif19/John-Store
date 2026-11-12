@@ -5,18 +5,11 @@ const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const admin = require("firebase-admin");
 const path = require("path");
-<<<<<<< HEAD
 const crypto = require("crypto");
-=======
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 const cloudinary = require("cloudinary").v2;
 const cors = require("cors");
 const app = express();
 
-<<<<<<< HEAD
-=======
-// ====== Middlewares ======
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 app.use(cors({
   origin: true,
   credentials: true
@@ -26,12 +19,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.resolve(__dirname, "../public")));
 
-<<<<<<< HEAD
-=======
-// Routes
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 app.get("/", (req, res) => {
-  res.sendFile(path.resolve(__dirname, "../public/index.html"));
+  res.redirect("/log-in");
 });
 
 app.get("/test", (req, res) => {
@@ -46,7 +35,6 @@ app.get("/dashboard", (req, res) => {
   res.sendFile(path.resolve(__dirname, "../public/dashboard.html"));
 });
 
-<<<<<<< HEAD
 app.get("/sign-in", (req, res) => {
   res.sendFile(path.resolve(__dirname, "../public/sign-in.html"));
 });
@@ -59,32 +47,25 @@ app.get("/account", (req, res) => {
   res.sendFile(path.resolve(__dirname, "../public/account.html"));
 });
 
+app.get("/index", (req, res) => {
+  res.sendFile(path.resolve(__dirname, "../public/index.html"));
+});
+
 app.get("/sign-in.html", (req, res) => res.redirect(301, "/sign-in"));
 app.get("/log-in.html", (req, res) => res.redirect(301, "/log-in"));
 app.get("/account.html", (req, res) => res.redirect(301, "/account"));
 
-=======
-// ====== Multer ======
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 3 * 1024 * 1024 }
 });
 
-<<<<<<< HEAD
-=======
-// ====== Cloudinary Config ======
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-<<<<<<< HEAD
-=======
-// ====== Firebase Admin Init ======
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 function initFirebase() {
   if (admin.apps.length) return;
 
@@ -111,19 +92,10 @@ function firestore() {
   return admin.firestore();
 }
 
-function storageBucket() {
-  initFirebase();
-  return admin.storage().bucket();
-}
-
 function nowISO() {
   return new Date().toISOString();
 }
 
-<<<<<<< HEAD
-=======
-// ====== Email ======
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 const transporter = nodemailer.createTransport({
   service: process.env.SMTP_SERVICE || "gmail",
   auth: {
@@ -132,10 +104,6 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-<<<<<<< HEAD
-=======
-// ====== Telegram Notify ======
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 async function telegramNotify(text) {
   try {
     const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -155,10 +123,6 @@ async function telegramNotify(text) {
   }
 }
 
-<<<<<<< HEAD
-=======
-// ====== Auth Helpers ======
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 function requireAdmin(req, res, next) {
   try {
     const token = req.cookies?.admin_token ||
@@ -183,7 +147,6 @@ function setAdminCookie(res, token) {
   });
 }
 
-<<<<<<< HEAD
 function requireUser(req, res, next) {
   try {
     const token = req.cookies?.user_token ||
@@ -252,9 +215,6 @@ function getClientIp(req) {
   return req.ip || req.connection?.remoteAddress || "unknown";
 }
 
-=======
-// ====== Storage Upload ======
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 async function uploadToCloudinary(file) {
   if (!file) return null;
 
@@ -270,7 +230,6 @@ async function uploadToCloudinary(file) {
   });
 }
 
-<<<<<<< HEAD
 async function uploadScreenshotToCloudinary(file) {
   if (!file) return null;
 
@@ -353,6 +312,7 @@ function buildWelcomeEmailHtml(name, accountUrl) {
 }
 
 async function sendWelcomeEmail(name, email) {
+  console.log("🔄 محاولة إرسال إيميل ترحيبي إلى:", email);
   const from = process.env.SMTP_USER || process.env.EMAIL_USER;
   if (!from) {
     console.error("Welcome email skipped: missing SMTP_USER/EMAIL_USER");
@@ -374,24 +334,21 @@ async function sendWelcomeEmail(name, email) {
   }
 }
 
-=======
-// ====== Health ======
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 app.get("/api/health", (req, res) => {
   res.json({ success: true, time: nowISO() });
 });
 
-<<<<<<< HEAD
 app.post("/api/auth/signup", async (req, res) => {
   try {
-    const { name, email, password } = req.body || {};
+    const { name, email, password, customId } = req.body || {};
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة" });
+    if (!name || !email || !password || !customId) {
+      return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة بما فيها الـ ID" });
     }
 
     const cleanName = String(name).trim();
     const cleanEmail = String(email).trim().toLowerCase();
+    const cleanId = String(customId).trim();
     const emailRegex = /^[^\s@]+@([^\s@.,]+\.)+[^\s@.,]{2,}$/;
 
     if (cleanName.length < 3) {
@@ -403,19 +360,20 @@ app.post("/api/auth/signup", async (req, res) => {
     if (String(password).length < 8) {
       return res.status(400).json({ success: false, message: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" });
     }
+    if (cleanId.length < 5) {
+      return res.status(400).json({ success: false, message: "ID الحساب يجب أن يكون 5 أرقام على الأقل" });
+    }
 
     const usersCol = firestore().collection("users");
 
-    const existing = await usersCol.where("email", "==", cleanEmail).limit(1).get();
-    if (!existing.empty) {
-      return res.status(409).json({ success: false, message: "هذا البريد الإلكتروني مسجل بالفعل، يرجى تسجيل الدخول" });
+    const existingEmail = await usersCol.where("email", "==", cleanEmail).limit(1).get();
+    if (!existingEmail.empty) {
+      return res.status(409).json({ success: false, message: "هذا البريد الإلكتروني مسجل بالفعل" });
     }
 
-    let baseId = generateBaseId();
-    for (let i = 0; i < 5; i++) {
-      const dup = await usersCol.where("baseId", "==", baseId).limit(1).get();
-      if (dup.empty) break;
-      baseId = generateBaseId();
+    const existingId = await usersCol.where("baseId", "==", cleanId).limit(1).get();
+    if (!existingId.empty) {
+      return res.status(409).json({ success: false, message: "هذا الـ ID مستخدم بالفعل، يرجى اختيار ID آخر" });
     }
 
     const passwordHash = await hashPassword(String(password));
@@ -423,7 +381,7 @@ app.post("/api/auth/signup", async (req, res) => {
     const userData = {
       name: cleanName,
       email: cleanEmail,
-      baseId,
+      baseId: cleanId,
       passwordHash,
       role: "user",
       isActive: true,
@@ -435,31 +393,24 @@ app.post("/api/auth/signup", async (req, res) => {
     const ref = await usersCol.add(userData);
 
     await firestore().collection("login_logs").add({
-      userId: ref.id,
-      name: cleanName,
-      email: cleanEmail,
-      event: "signup",
-      success: true,
-      ip: getClientIp(req),
-      userAgent: req.headers["user-agent"] || null,
+      userId: ref.id, name: cleanName, email: cleanEmail, event: "signup", success: true,
+      ip: getClientIp(req), userAgent: req.headers["user-agent"] || null,
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
     sendWelcomeEmail(cleanName, cleanEmail).catch((e) => console.error(e));
-    telegramNotify(`🆕 حساب جديد\nالاسم: ${cleanName}\nالبريد: ${cleanEmail}\nID: ${baseId}`).catch(() => {});
 
     const token = jwt.sign(
-      { uid: ref.id, email: cleanEmail, name: cleanName, baseId, role: "user" },
+      { uid: ref.id, email: cleanEmail, name: cleanName, baseId: cleanId, role: "user" },
       process.env.USER_JWT_SECRET || process.env.ADMIN_JWT_SECRET,
       { expiresIn: "30d" }
     );
     setUserCookie(res, token, true);
 
     return res.status(201).json({
-      success: true,
-      message: "تم إنشاء الحساب بنجاح",
-      user: { id: ref.id, name: cleanName, email: cleanEmail, baseId },
-      redirect: "/account"
+      success: true, message: "تم إنشاء الحساب بنجاح",
+      user: { id: ref.id, name: cleanName, email: cleanEmail, baseId: cleanId },
+      redirect: "/"
     });
   } catch (err) {
     console.error("Signup error:", err);
@@ -483,14 +434,8 @@ app.post("/api/auth/login", async (req, res) => {
 
     if (snap.empty) {
       await firestore().collection("login_logs").add({
-        userId: null,
-        email: cleanEmail,
-        event: "login",
-        success: false,
-        reason: "user_not_found",
-        ip,
-        userAgent: ua,
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
+        userId: null, email: cleanEmail, event: "login", success: false, reason: "user_not_found",
+        ip, userAgent: ua, createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
       return res.status(401).json({ success: false, message: "البريد الإلكتروني أو كلمة المرور غير صحيحة" });
     }
@@ -500,15 +445,8 @@ app.post("/api/auth/login", async (req, res) => {
 
     if (user.isActive === false) {
       await firestore().collection("login_logs").add({
-        userId: userDoc.id,
-        name: user.name || null,
-        email: cleanEmail,
-        event: "login",
-        success: false,
-        reason: "inactive",
-        ip,
-        userAgent: ua,
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
+        userId: userDoc.id, name: user.name || null, email: cleanEmail, event: "login", success: false, reason: "inactive",
+        ip, userAgent: ua, createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
       return res.status(403).json({ success: false, message: "هذا الحساب موقوف، يرجى التواصل مع الدعم" });
     }
@@ -516,15 +454,8 @@ app.post("/api/auth/login", async (req, res) => {
     const ok = await verifyPassword(String(password), user.passwordHash);
     if (!ok) {
       await firestore().collection("login_logs").add({
-        userId: userDoc.id,
-        name: user.name || null,
-        email: cleanEmail,
-        event: "login",
-        success: false,
-        reason: "wrong_password",
-        ip,
-        userAgent: ua,
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
+        userId: userDoc.id, name: user.name || null, email: cleanEmail, event: "login", success: false, reason: "wrong_password",
+        ip, userAgent: ua, createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
       return res.status(401).json({ success: false, message: "البريد الإلكتروني أو كلمة المرور غير صحيحة" });
     }
@@ -535,24 +466,12 @@ app.post("/api/auth/login", async (req, res) => {
     });
 
     await firestore().collection("login_logs").add({
-      userId: userDoc.id,
-      name: user.name || null,
-      email: cleanEmail,
-      event: "login",
-      success: true,
-      ip,
-      userAgent: ua,
-      createdAt: admin.firestore.FieldValue.serverTimestamp()
+      userId: userDoc.id, name: user.name || null, email: cleanEmail, event: "login", success: true,
+      ip, userAgent: ua, createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
     const token = jwt.sign(
-      {
-        uid: userDoc.id,
-        email: user.email,
-        name: user.name,
-        baseId: user.baseId,
-        role: "user"
-      },
+      { uid: userDoc.id, email: user.email, name: user.name, baseId: user.baseId, role: "user" },
       process.env.USER_JWT_SECRET || process.env.ADMIN_JWT_SECRET,
       { expiresIn: remember ? "30d" : "1d" }
     );
@@ -562,7 +481,7 @@ app.post("/api/auth/login", async (req, res) => {
       success: true,
       message: "تم تسجيل الدخول بنجاح",
       user: { id: userDoc.id, name: user.name, email: user.email, baseId: user.baseId },
-      redirect: "/account"
+      redirect: "/"
     });
   } catch (err) {
     console.error("Login error:", err);
@@ -578,17 +497,44 @@ app.get("/api/auth/me", requireUser, async (req, res) => {
     res.json({
       success: true,
       user: {
-        id: doc.id,
-        name: u.name,
-        email: u.email,
-        baseId: u.baseId,
-        role: u.role || "user",
-        isActive: u.isActive !== false
+        id: doc.id, name: u.name, email: u.email, baseId: u.baseId,
+        role: u.role || "user", isActive: u.isActive !== false
       }
     });
   } catch (e) {
     console.error(e);
     res.status(500).json({ success: false, message: "خطأ في جلب البيانات" });
+  }
+});
+
+app.put("/api/auth/update", requireUser, async (req, res) => {
+  try {
+    const { name, customId } = req.body;
+    const userRef = firestore().collection("users").doc(req.user.uid);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) return res.status(404).json({ success: false, message: "المستخدم غير موجود" });
+    
+    const updateData = {};
+    if (name && name.trim().length >= 3) updateData.name = name.trim();
+    
+    if (customId && customId.trim() !== userDoc.data().baseId) {
+      const cleanId = String(customId).trim();
+      if (cleanId.length < 5) return res.status(400).json({ success: false, message: "ID الحساب يجب أن يكون 5 أرقام على الأقل" });
+      
+      const dup = await firestore().collection("users").where("baseId", "==", cleanId).limit(1).get();
+      if (!dup.empty) return res.status(409).json({ success: false, message: "هذا الـ ID مستخدم بالفعل" });
+      updateData.baseId = cleanId;
+    }
+    
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ success: false, message: "لا توجد بيانات للتحديث" });
+    }
+
+    await userRef.update(updateData);
+    res.json({ success: true, message: "تم تحديث البيانات بنجاح" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "حدث خطأ أثناء التحديث" });
   }
 });
 
@@ -599,29 +545,34 @@ app.post("/api/auth/logout", (req, res) => {
 
 app.get("/api/account/orders", requireUser, async (req, res) => {
   try {
-    const snap = await firestore().collection("orders")
-      .where("userId", "==", req.user.uid)
-      .orderBy("created_at", "desc")
-      .get();
+    const userDoc = await firestore().collection("users").doc(req.user.uid).get();
+    const userEmail = userDoc.exists ? userDoc.data().email : req.user.email;
 
-    const data = snap.docs.map(d => {
+    const snap = await firestore().collection("orders").where("userId", "==", req.user.uid).get();
+    const snapByEmail = await firestore().collection("orders").where("email", "==", userEmail).get();
+
+    const ordersMap = new Map();
+    snap.docs.forEach(d => ordersMap.set(d.id, d));
+    snapByEmail.docs.forEach(d => ordersMap.set(d.id, d));
+
+    const data = await Promise.all(Array.from(ordersMap.values()).map(async d => {
       const o = d.data();
       let createdAt = null;
       if (o.created_at && o.created_at.toDate) createdAt = o.created_at.toDate().toISOString();
+      
+      const screensSnap = await firestore().collection("screenshots").where("orderId", "==", d.id).get();
+      const screens = screensSnap.docs.map(s => ({ id: s.id, imageUrl: s.data().imageUrl }));
+
       return {
-        id: d.id,
-        playerId: o.playerId || null,
-        name: o.name || null,
-        type: o.type || null,
-        ucAmount: o.ucAmount || null,
-        bundle: o.bundle || null,
-        totalAmount: o.totalAmount || 0,
-        status: o.status || null,
-        transactionId: o.transactionId || null,
-        screenshotUrl: o.screenshotUrl || null,
-        created_at: createdAt
+        id: d.id, playerId: o.playerId || null, name: o.name || null, type: o.type || null,
+        ucAmount: o.ucAmount || null, bundle: o.bundle || null, totalAmount: o.totalAmount || 0,
+        status: o.status || null, transactionId: o.transactionId || null,
+        screenshotUrl: o.screenshotUrl || null, created_at: createdAt,
+        screens: screens
       };
-    });
+    }));
+
+    data.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
     res.json({ success: true, data });
   } catch (e) {
@@ -635,23 +586,14 @@ app.get("/api/account/screens", requireUser, async (req, res) => {
     const userDoc = await firestore().collection("users").doc(req.user.uid).get();
     if (!userDoc.exists) return res.status(404).json({ success: false, message: "المستخدم غير موجود" });
     const user = userDoc.data();
-    const baseId = user.baseId;
 
-    const snap = await firestore().collection("screenshots")
-      .where("targetBaseId", "==", baseId)
-      .get();
+    const snap = await firestore().collection("screenshots").where("targetBaseId", "==", user.baseId).get();
 
     const data = snap.docs.map(d => {
       const s = d.data();
       let createdAt = null;
       if (s.createdAt && s.createdAt.toDate) createdAt = s.createdAt.toDate().toISOString();
-      return {
-        id: d.id,
-        imageUrl: s.imageUrl,
-        label: s.label || null,
-        targetBaseId: s.targetBaseId || null,
-        createdAt
-      };
+      return { id: d.id, imageUrl: s.imageUrl, label: s.label || null, targetBaseId: s.targetBaseId || null, createdAt };
     });
 
     data.sort((a, b) => {
@@ -667,9 +609,6 @@ app.get("/api/account/screens", requireUser, async (req, res) => {
   }
 });
 
-=======
-// ====== Public APIs ======
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 app.post("/api/order", upload.single("screenshot"), async (req, res) => {
   try {
     const { name, playerId, email, ucAmount, bundle, totalAmount, transactionId, couponCode, discountAmount } = req.body;
@@ -689,7 +628,6 @@ app.post("/api/order", upload.single("screenshot"), async (req, res) => {
       }
     }
 
-<<<<<<< HEAD
     let userId = null;
     try {
       const token = req.cookies?.user_token;
@@ -700,46 +638,23 @@ app.post("/api/order", upload.single("screenshot"), async (req, res) => {
     } catch { /* ignore */ }
 
     const orderData = {
-      name, playerId, email, type,
-      userId,
-=======
-    const orderData = {
-      name, playerId, email, type,
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
-      ucAmount: ucAmount || null,
-      bundle: bundle || null,
-      totalAmount: Number(totalAmount),
-      transactionId: transactionId || null,
-      screenshotUrl: screenshotUrl,
-      status: "لم يتم الدفع",
+      name, playerId, email, type, userId,
+      ucAmount: ucAmount || null, bundle: bundle || null, totalAmount: Number(totalAmount),
+      transactionId: transactionId || null, screenshotUrl: screenshotUrl, status: "لم يتم الدفع",
       created_at: admin.firestore.FieldValue.serverTimestamp(),
-      couponCode: couponCode || null,
-      discountAmount: discountAmount ? Number(discountAmount) : null
+      couponCode: couponCode || null, discountAmount: discountAmount ? Number(discountAmount) : null
     };
 
     const ref = await firestore().collection("orders").add(orderData);
 
-    telegramNotify(`🧾 طلب جديد
-    \nالاسم: ${name}
-    \nايدي اللاعب: ${playerId}
-    \nالبريد: ${email}
-    \nالنوع: ${type}
-    \nالإجمالي: ${totalAmount}
-    \nID: ${ref.id}`).catch(e => console.error(e));
+    telegramNotify(`🧾 طلب جديد\nالاسم: ${name}\nايدي اللاعب: ${playerId}\nالبريد: ${email}\nالنوع: ${type}\nالإجمالي: ${totalAmount}\nID: ${ref.id}`).catch(e => console.error(e));
 
     const notifyTo = process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER || process.env.EMAIL_USER;
     if (notifyTo) {
       transporter.sendMail({
         from: `"Trip Store" <${process.env.SMTP_USER || process.env.EMAIL_USER}>`,
-        to: notifyTo,
-        subject: "طلب جديد",
-        html: `<div dir="rtl">
-        <h2>طلب جديد</h2>
-        <p><b>الاسم:</b> ${name}</p>
-        <p><b>ايدي-اللاعب:</b> ${playerId}</p>
-        <p><b>البريد:</b> ${email}</p>
-        <p><b>النوع:</b> ${type}</p>
-        <p><b>الإجمالي:</b> ${totalAmount}</p>${screenshotUrl ? `<p><a href="${screenshotUrl}">صورة التحويل</a></p>` : ""}</div>`
+        to: notifyTo, subject: "طلب جديد",
+        html: `<div dir="rtl"><h2>طلب جديد</h2><p><b>الاسم:</b> ${name}</p><p><b>ايدي-اللاعب:</b> ${playerId}</p><p><b>البريد:</b> ${email}</p><p><b>النوع:</b> ${type}</p><p><b>الإجمالي:</b> ${totalAmount}</p>${screenshotUrl ? `<p><a href="${screenshotUrl}">صورة التحويل</a></p>` : ""}</div>`
       }).catch(e => console.error(e));
     }
 
@@ -772,8 +687,7 @@ app.post("/api/order/confirm-payment", upload.single("screenshot"), async (req, 
     if (req.file) screenshotUrl = await uploadToCloudinary(req.file);
 
     const updateData = {
-      transactionId,
-      status: "تم الدفع - قيد المراجعة",
+      transactionId, status: "تم الدفع - قيد المراجعة",
       payment_confirmed_at: admin.firestore.FieldValue.serverTimestamp()
     };
     if (screenshotUrl) updateData.screenshotUrl = screenshotUrl;
@@ -789,24 +703,14 @@ app.post("/api/order/confirm-payment", upload.single("screenshot"), async (req, 
   }
 });
 
-<<<<<<< HEAD
-=======
-//الاستفسار 
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 app.post("/api/inquiry", async (req, res) => {
   try {
     const { name, email, message } = req.body;
-
-    if (!email || !message) {
-      return res.status(400).json({ success: false, message: "البريد الإلكتروني والرسالة مطلوبان" });
-    }
+    if (!email || !message) return res.status(400).json({ success: false, message: "البريد الإلكتروني والرسالة مطلوبان" });
 
     const inquiryData = {
-      name: name || "غير مذكور",
-      email: email,
-      message: message,
-      status: "قيد الانتظار",
-      created_at: admin.firestore.FieldValue.serverTimestamp()
+      name: name || "غير مذكور", email: email, message: message,
+      status: "قيد الانتظار", created_at: admin.firestore.FieldValue.serverTimestamp()
     };
     const ref = await firestore().collection("inquiries").add(inquiryData);
 
@@ -816,142 +720,70 @@ app.post("/api/inquiry", async (req, res) => {
     if (notifyTo) {
       transporter.sendMail({
         from: `"فريق الدعم" <${process.env.SMTP_USER}>`,
-        to: notifyTo,
-        subject: "📩 استفسار جديد على الموقع",
-        html: `<div dir="rtl"><h3>استفسار جديد</h3>
-               <p><strong>الاسم:</strong> ${name || "غير مذكور"}</p>
-               <p><strong>البريد:</strong> ${email}</p>
-               <p><strong>الرسالة:</strong></p>
-               <p>${message.replace(/\n/g, "<br>")}</p>
-               <hr><p><a href="${process.env.DASHBOARD_URL || '#'}">عرض في لوحة التحكم</a></p></div>`
+        to: notifyTo, subject: "📩 استفسار جديد على الموقع",
+        html: `<div dir="rtl"><h3>استفسار جديد</h3><p><strong>الاسم:</strong> ${name || "غير مذكور"}</p><p><strong>البريد:</strong> ${email}</p><p><strong>الرسالة:</strong></p><p>${message.replace(/\n/g, "<br>")}</p><hr><p><a href="${process.env.DASHBOARD_URL || '#'}">عرض في لوحة التحكم</a></p></div>`
       }).catch(e => console.error("Email notify error:", e));
     }
-
     return res.status(200).json({ success: true, id: ref.id, message: "تم استلام استفسارك بنجاح" });
-
   } catch (err) {
     console.error("❌ خطأ في /api/inquiry:", err);
     return res.status(500).json({ success: false, message: "حدث خطأ في قاعدة البيانات. الرجاء المحاولة لاحقاً." });
   }
 });
 
-<<<<<<< HEAD
-=======
-//الاقتراح
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 app.post("/api/suggestion", async (req, res) => {
   try {
     const { name, contact, message } = req.body;
-
-    if (!name || !contact || !message) {
-      return res.status(400).json({ success: false, message: "جميع الحقول (الاسم، وسيلة التواصل، الرسالة) مطلوبة" });
-    }
+    if (!name || !contact || !message) return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة" });
 
     const suggestionData = {
-      name: name,
-      contact: contact,
-      message: message,
-      created_at: admin.firestore.FieldValue.serverTimestamp()
+      name, contact, message, created_at: admin.firestore.FieldValue.serverTimestamp()
     };
     const ref = await firestore().collection("suggestions").add(suggestionData);
 
     telegramNotify(`💡 اقتراح جديد\nالاسم: ${name}\nوسيلة التواصل: ${contact}\nالاقتراح: ${message.substring(0, 100)}`).catch(e => console.error(e));
-<<<<<<< HEAD
 
-=======
-    
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
     const notifyTo = process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER;
     if (notifyTo) {
       transporter.sendMail({
         from: `"اقتراحات الموقع" <${process.env.SMTP_USER}>`,
-        to: notifyTo,
-        subject: "💡 اقتراح جديد",
-        html: `<div dir="rtl"><h3>اقتراح جديد لتطوير الموقع</h3>
-               <p><strong>الاسم:</strong> ${name}</p>
-               <p><strong>للتواصل:</strong> ${contact}</p>
-               <p><strong>الاقتراح:</strong></p>
-               <p>${message.replace(/\n/g, "<br>")}</p></div>`
+        to: notifyTo, subject: "💡 اقتراح جديد",
+        html: `<div dir="rtl"><h3>اقتراح جديد لتطوير الموقع</h3><p><strong>الاسم:</strong> ${name}</p><p><strong>للتواصل:</strong> ${contact}</p><p><strong>الاقتراح:</strong></p><p>${message.replace(/\n/g, "<br>")}</p></div>`
       }).catch(e => console.error(e));
     }
-
     return res.status(200).json({ success: true, id: ref.id, message: "شكراً لك! تم استلام اقتراحك" });
-
   } catch (err) {
     console.error("❌ خطأ في /api/suggestion:", err);
     return res.status(500).json({ success: false, message: "حدث خطأ في الخادم. يرجى المحاولة مرة أخرى." });
   }
 });
 
-<<<<<<< HEAD
 const lookupRateLimit = new Map();
 const RATE_LIMIT_WINDOW = 60 * 1000;
 const MAX_REQUESTS_PER_WINDOW = 10;
-=======
-
-// ========================================================
-// ====== NEW: PUBG Mobile Player Lookup System ===========
-// ========================================================
-
-// حماية بسيطة من السبام (Rate Limiting)
-const lookupRateLimit = new Map();
-const RATE_LIMIT_WINDOW = 60 * 1000; // دقيقة واحدة
-const MAX_REQUESTS_PER_WINDOW = 10; // 10 طلبات كحد أقصى في الدقيقة لكل IP
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 
 app.get("/api/lookup-player/:uid", async (req, res) => {
   try {
     const clientIp = req.ip || req.headers['x-forwarded-for'] || 'unknown';
     const now = Date.now();
-<<<<<<< HEAD
 
-=======
-    
-    // فحص الـ Rate Limit
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
-    if (!lookupRateLimit.has(clientIp)) {
-      lookupRateLimit.set(clientIp, []);
-    }
+    if (!lookupRateLimit.has(clientIp)) lookupRateLimit.set(clientIp, []);
     const requestTimes = lookupRateLimit.get(clientIp).filter(time => now - time < RATE_LIMIT_WINDOW);
-    if (requestTimes.length >= MAX_REQUESTS_PER_WINDOW) {
-      return res.status(429).json({ success: false, message: "طلبات كثيرة جداً. يرجى الانتظار دقيقة." });
-    }
+    if (requestTimes.length >= MAX_REQUESTS_PER_WINDOW) return res.status(429).json({ success: false, message: "طلبات كثيرة جداً. يرجى الانتظار دقيقة." });
     requestTimes.push(now);
     lookupRateLimit.set(clientIp, requestTimes);
 
-<<<<<<< HEAD
-=======
-    // التحقق من الـ UID
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
     const uid = req.params.uid;
-    if (!uid || isNaN(uid) || uid.length < 5) {
-      return res.status(400).json({ success: false, message: "يرجى إدخال ID صحيح" });
-    }
+    if (!uid || isNaN(uid) || uid.length < 5) return res.status(400).json({ success: false, message: "يرجى إدخال ID صحيح" });
 
     const apiKey = process.env.RAPIDAPI_KEY;
-    if (!apiKey) {
-      console.error("Missing RAPIDAPI_KEY in environment variables");
-      return res.status(500).json({ success: false, message: "خدمة البحث غير مهيأة حالياً" });
-    }
+    if (!apiKey) return res.status(500).json({ success: false, message: "خدمة البحث غير مهيأة حالياً" });
 
-<<<<<<< HEAD
-=======
-    // إرسال الطلب لـ RapidAPI
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
     const response = await fetch(`https://id-game-checker.p.rapidapi.com/pubgm-global/${uid}`, {
-      method: 'GET',
-      headers: {
-        'X-RapidAPI-Key': apiKey,
-        'X-RapidAPI-Host': 'id-game-checker.p.rapidapi.com'
-      }
+      method: 'GET', headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': 'id-game-checker.p.rapidapi.com' }
     });
 
     const data = await response.json();
-
-<<<<<<< HEAD
-=======
-    // معالجة النتيجة
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
     if (data && data.error === false && data.data && data.data.username) {
       return res.json({ success: true, name: data.data.username });
     } else {
@@ -963,13 +795,6 @@ app.get("/api/lookup-player/:uid", async (req, res) => {
   }
 });
 
-<<<<<<< HEAD
-=======
-// ========================================================
-
-
-// ====== Admin APIs ======
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 app.post("/api/admin/login", async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ success: false, message: "بيانات الدخول مطلوبة" });
@@ -1029,7 +854,6 @@ app.get("/api/admin/messages", requireAdmin, async (req, res) => {
   }
 });
 
-<<<<<<< HEAD
 app.get("/api/admin/users", requireAdmin, async (req, res) => {
   try {
     const snap = await firestore().collection("users").orderBy("createdAt", "desc").get();
@@ -1039,15 +863,9 @@ app.get("/api/admin/users", requireAdmin, async (req, res) => {
       if (u.createdAt && u.createdAt.toDate) createdAt = u.createdAt.toDate().toISOString();
       if (u.lastLoginAt && u.lastLoginAt.toDate) lastLoginAt = u.lastLoginAt.toDate().toISOString();
       return {
-        id: d.id,
-        name: u.name || null,
-        email: u.email || null,
-        baseId: u.baseId || null,
-        role: u.role || "user",
-        isActive: u.isActive !== false,
-        loginCount: u.loginCount || 0,
-        createdAt,
-        lastLoginAt
+        id: d.id, name: u.name || null, email: u.email || null, baseId: u.baseId || null,
+        role: u.role || "user", isActive: u.isActive !== false,
+        loginCount: u.loginCount || 0, createdAt, lastLoginAt
       };
     });
     res.json({ success: true, data: users });
@@ -1066,16 +884,9 @@ app.get("/api/admin/login-logs", requireAdmin, async (req, res) => {
       let createdAt = null;
       if (l.createdAt && l.createdAt.toDate) createdAt = l.createdAt.toDate().toISOString();
       return {
-        id: d.id,
-        userId: l.userId || null,
-        name: l.name || null,
-        email: l.email || null,
-        event: l.event || "login",
-        success: !!l.success,
-        reason: l.reason || null,
-        ip: l.ip || null,
-        userAgent: l.userAgent || null,
-        createdAt
+        id: d.id, userId: l.userId || null, name: l.name || null, email: l.email || null,
+        event: l.event || "login", success: !!l.success, reason: l.reason || null,
+        ip: l.ip || null, userAgent: l.userAgent || null, createdAt
       };
     });
     res.json({ success: true, data: logs });
@@ -1092,8 +903,7 @@ app.get("/api/admin/users/:id", requireAdmin, async (req, res) => {
     if (!doc.exists) return res.status(404).json({ success: false, message: "المستخدم غير موجود" });
     const u = doc.data();
 
-    const ordersSnap = await firestore().collection("orders")
-      .where("userId", "==", id).get();
+    const ordersSnap = await firestore().collection("orders").where("userId", "==", id).get();
     const orders = ordersSnap.docs.map(o => ({ id: o.id, ...o.data() }));
 
     let createdAt = null, lastLoginAt = null;
@@ -1103,16 +913,9 @@ app.get("/api/admin/users/:id", requireAdmin, async (req, res) => {
     res.json({
       success: true,
       data: {
-        id: doc.id,
-        name: u.name || null,
-        email: u.email || null,
-        baseId: u.baseId || null,
-        role: u.role || "user",
-        isActive: u.isActive !== false,
-        loginCount: u.loginCount || 0,
-        createdAt,
-        lastLoginAt,
-        orders
+        id: doc.id, name: u.name || null, email: u.email || null, baseId: u.baseId || null,
+        role: u.role || "user", isActive: u.isActive !== false, loginCount: u.loginCount || 0,
+        createdAt, lastLoginAt, orders
       }
     });
   } catch (e) {
@@ -1121,8 +924,6 @@ app.get("/api/admin/users/:id", requireAdmin, async (req, res) => {
   }
 });
 
-=======
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 app.post("/api/admin/update-status", requireAdmin, async (req, res) => {
   try {
     const { id, status } = req.body;
@@ -1190,8 +991,7 @@ app.post("/api/admin/reply-inquiry", requireAdmin, async (req, res) => {
 
     await transporter.sendMail({
       from: `"فريق الدعم" <${process.env.SMTP_USER || process.env.EMAIL_USER}>`,
-      to: email,
-      subject: "رد على استفسارك",
+      to: email, subject: "رد على استفسارك",
       html: `<div dir="rtl"><h2>شكراً لتواصلك معنا</h2><p><strong>استفسارك:</strong></p><p>${message}</p><h3>رد الفريق:</h3><p>${reply}</p><p>مع تحيات فريق الدعم</p></div>`
     });
     await firestore().collection("inquiries").doc(inquiryId).update({ status: "تم الرد" });
@@ -1202,61 +1002,38 @@ app.post("/api/admin/reply-inquiry", requireAdmin, async (req, res) => {
   }
 });
 
-<<<<<<< HEAD
 app.post("/api/admin/send-message", requireAdmin, async (req, res) => {
   try {
     const { email, subject, message } = req.body;
-
-=======
-// تحسين واجهة إرسال الرسائل المباشرة
-app.post("/api/admin/send-message", requireAdmin, async (req, res) => {
-  try {
-    const { email, subject, message } = req.body;
-    
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
-    if (!email || !subject || !message) {
-      return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة: البريد الإلكتروني، العنوان، والرسالة" });
-    }
+    if (!email || !subject || !message) return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة" });
 
     const emailRegex = /^[^\s@]+@([^\s@.,]+\.)+[^\s@.,]{2,}$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({ success: false, message: "صيغة البريد الإلكتروني غير صحيحة" });
-    }
+    if (!emailRegex.test(email)) return res.status(400).json({ success: false, message: "صيغة البريد الإلكتروني غير صحيحة" });
 
     const messageData = {
       to: email, subject: subject, message: message,
-      sent_at: admin.firestore.FieldValue.serverTimestamp(),
-      status: "pending"
+      sent_at: admin.firestore.FieldValue.serverTimestamp(), status: "pending"
     };
-<<<<<<< HEAD
 
     const docRef = await firestore().collection("messages").add(messageData);
     const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USER;
     const smtpPass = process.env.SMTP_PASS || process.env.EMAIL_PASS;
 
-=======
-    
-    const docRef = await firestore().collection("messages").add(messageData);
-    const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USER;
-    const smtpPass = process.env.SMTP_PASS || process.env.EMAIL_PASS;
-    
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
     if (!smtpUser || !smtpPass) {
-      console.error("❌ SMTP غير مهيأ: تأكد من وجود SMTP_USER و SMTP_PASS في البيئة");
       await docRef.update({ status: "failed", error: "SMTP configuration missing" });
-      return res.status(500).json({ success: false, message: "خادم البريد الإلكتروني غير مهيأ. يرجى التواصل مع الدعم الفني." });
+      return res.status(500).json({ success: false, message: "خادم البريد الإلكتروني غير مهيأ." });
     }
 
     try {
       const info = await transporter.sendMail({
-        from: `"TRIPxESPORTS فريق الدعم" <${smtpUser}>`,
+        from: `"John Store فريق الدعم" <${smtpUser}>`,
         to: email,
         subject: subject,
         html: `
           <div dir="rtl" style="font-family: 'Tajawal', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
             <div style="text-align: center; margin-bottom: 20px;">
-              <img src="https://i.postimg.cc/j5xyytm6/TRIPx-ESPORTS.jpg" alt="TRIPxESPORTS" style="width: 80px; height: 80px; border-radius: 50%;">
-              <h2 style="color: #ff7a00; margin-top: 10px;">TRIPxESPORTS</h2>
+              <img src="https://i.postimg.cc/x8xtX2KR/john-store.png" alt="John Store" style="width: 80px; height: 80px; border-radius: 50%;">
+              <h2 style="color: #ff7a00; margin-top: 10px;">John Store</h2>
             </div>
             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
               <h3 style="color: #1a1a2e; margin-top: 0;">${subject}</h3>
@@ -1267,80 +1044,32 @@ app.post("/api/admin/send-message", requireAdmin, async (req, res) => {
             <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
             <p style="color: #666; font-size: 12px; text-align: center;">
               هذا البريد إلكتروني آلي، يرجى عدم الرد عليه.<br>
-              مع تحيات فريق دعم TRIPxESPORTS
+              مع تحيات فريق دعم John Store
             </p>
           </div>
         `,
-        text: `TRIPxESPORTS\n\nالموضوع: ${subject}\n\n${message}\n\nهذا البريد إلكتروني آلي، يرجى عدم الرد عليه.`
+        text: `John Store\n\nالموضوع: ${subject}\n\n${message}\n\nهذا البريد إلكتروني آلي، يرجى عدم الرد عليه.`
       });
-
-      console.log("✅ تم إرسال البريد:", info.messageId);
-<<<<<<< HEAD
-
-      await docRef.update({
-        status: "sent", message_id: info.messageId,
-        sent_at: admin.firestore.FieldValue.serverTimestamp()
-      });
-
+      await docRef.update({ status: "sent", message_id: info.messageId, sent_at: admin.firestore.FieldValue.serverTimestamp() });
       return res.json({ success: true, message: "تم إرسال الرسالة بنجاح", messageId: info.messageId });
-
     } catch (smtpError) {
-      console.error("❌ فشل إرسال البريد:", smtpError);
-
       await docRef.update({ status: "failed", error: smtpError.message || "SMTP sending failed" });
-
-=======
-      
-      await docRef.update({ 
-        status: "sent", message_id: info.messageId,
-        sent_at: admin.firestore.FieldValue.serverTimestamp()
-      });
-      
-      return res.json({ success: true, message: "تم إرسال الرسالة بنجاح", messageId: info.messageId });
-      
-    } catch (smtpError) {
-      console.error("❌ فشل إرسال البريد:", smtpError);
-      
-      await docRef.update({ status: "failed", error: smtpError.message || "SMTP sending failed" });
-      
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
       let userMessage = "فشل إرسال الرسالة. ";
-      if (smtpError.code === 'EAUTH') {
-        userMessage += "خطأ في المصادقة. يرجى التحقق من إعدادات البريد الإلكتروني.";
-      } else if (smtpError.code === 'ESOCKET') {
-        userMessage += "مشكلة في الاتصال بالخادم. يرجى المحاولة لاحقاً.";
-      } else if (smtpError.response && smtpError.response.includes('535')) {
-        userMessage += "كلمة مرور التطبيق غير صحيحة. يرجى استخدام كلمة مرور مخصصة للتطبيقات مع Gmail.";
-      } else {
-        userMessage += "يرجى المحاولة مرة أخرى أو التواصل مع الدعم.";
-      }
-<<<<<<< HEAD
-
-      return res.status(500).json({
-=======
-      
-      return res.status(500).json({ 
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
-        success: false, message: userMessage,
-        details: process.env.NODE_ENV === 'development' ? smtpError.message : undefined
-      });
+      if (smtpError.code === 'EAUTH') userMessage += "خطأ في المصادقة.";
+      else if (smtpError.code === 'ESOCKET') userMessage += "مشكلة في الاتصال بالخادم.";
+      else userMessage += "يرجى المحاولة مرة أخرى.";
+      return res.status(500).json({ success: false, message: userMessage });
     }
-<<<<<<< HEAD
-
-=======
-    
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
   } catch (err) {
     console.error("❌ خطأ في /api/admin/send-message:", err);
-    return res.status(500).json({ success: false, message: "حدث خطأ داخلي في الخادم. يرجى المحاولة لاحقاً." });
+    return res.status(500).json({ success: false, message: "حدث خطأ داخلي في الخادم." });
   }
 });
 
-<<<<<<< HEAD
 app.post("/api/admin/screens", requireAdmin, upload.single("image"), async (req, res) => {
   try {
-    const { targetBaseId, label } = req.body;
-    if (!targetBaseId) return res.status(400).json({ success: false, message: "ID المستهدف مطلوب" });
+    const { targetBaseId, orderId, label } = req.body;
+    if (!targetBaseId || !orderId) return res.status(400).json({ success: false, message: "ID المستخدم ورقم الطلب مطلوبان" });
     if (!req.file) return res.status(400).json({ success: false, message: "الصورة مطلوبة" });
 
     const usersSnap = await firestore().collection("users").where("baseId", "==", targetBaseId).limit(1).get();
@@ -1349,11 +1078,8 @@ app.post("/api/admin/screens", requireAdmin, upload.single("image"), async (req,
     const imageUrl = await uploadScreenshotToCloudinary(req.file);
 
     const ref = await firestore().collection("screenshots").add({
-      imageUrl,
-      label: label || null,
-      targetBaseId,
-      targetUserId: usersSnap.docs[0].id,
-      uploadedBy: "admin",
+      imageUrl, label: label || null, targetBaseId, orderId,
+      targetUserId: usersSnap.docs[0].id, uploadedBy: "admin",
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
@@ -1366,16 +1092,12 @@ app.post("/api/admin/screens", requireAdmin, upload.single("image"), async (req,
 
 app.get("/api/admin/screens", requireAdmin, async (req, res) => {
   try {
-    const { baseId } = req.query;
-    let query = firestore().collection("screenshots").orderBy("createdAt", "desc");
-    if (baseId) query = firestore().collection("screenshots").where("targetBaseId", "==", baseId).orderBy("createdAt", "desc");
-
-    const snap = await query.get();
+    const snap = await firestore().collection("screenshots").orderBy("createdAt", "desc").get();
     const data = snap.docs.map(d => {
       const s = d.data();
       let createdAt = null;
       if (s.createdAt && s.createdAt.toDate) createdAt = s.createdAt.toDate().toISOString();
-      return { id: d.id, imageUrl: s.imageUrl, label: s.label || null, targetBaseId: s.targetBaseId || null, createdAt };
+      return { id: d.id, imageUrl: s.imageUrl, label: s.label || null, targetBaseId: s.targetBaseId || null, orderId: s.orderId || null, createdAt };
     });
     res.json({ success: true, data });
   } catch (e) {
@@ -1395,9 +1117,6 @@ app.delete("/api/admin/screens/:id", requireAdmin, async (req, res) => {
   }
 });
 
-=======
-// ====== COUPONS SYSTEM ======
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 function getCouponsCollection() {
   return firestore().collection("coupons");
 }
@@ -1411,13 +1130,10 @@ app.post("/api/admin/coupons", requireAdmin, async (req, res) => {
     if (!existing.empty) return res.status(400).json({ success: false, message: "هذا الكود موجود بالفعل" });
 
     const couponData = {
-      code: code.toUpperCase(),
-      discountPercent: Number(discountPercent),
-      description: description || "",
+      code: code.toUpperCase(), discountPercent: Number(discountPercent), description: description || "",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       expiresAt: expiresAt ? admin.firestore.Timestamp.fromDate(new Date(expiresAt)) : null,
-      usedCount: 0,
-      isActive: true
+      usedCount: 0, isActive: true
     };
     const ref = await getCouponsCollection().add(couponData);
     res.json({ success: true, id: ref.id });
@@ -1490,8 +1206,4 @@ app.post("/api/use-coupon", async (req, res) => {
   }
 });
 
-<<<<<<< HEAD
 module.exports = app;
-=======
-module.exports = app;
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f

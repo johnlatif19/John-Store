@@ -7,12 +7,7 @@
 
   function escapeHtml(str) {
     if (str === null || str === undefined) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   function formatDate(dateValue) {
@@ -87,9 +82,7 @@
     list.innerHTML = '';
     userOrders.forEach(function (o) {
       const st = mapOrderStatus(o.status);
-      const item = o.type === 'UC'
-        ? (o.ucAmount ? o.ucAmount + ' UC' : 'UC')
-        : (o.bundle || 'Bundle');
+      const item = o.type === 'UC' ? (o.ucAmount ? o.ucAmount + ' UC' : 'UC') : (o.bundle || 'Bundle');
       const card = document.createElement('div');
       card.className = 'order-card status-' + st.cls;
       card.innerHTML =
@@ -223,6 +216,60 @@
     if (loadingEl) loadingEl.style.display = 'none';
     if (contentEl) contentEl.style.display = 'block';
   }
+
+  // --- Edit Profile Functions ---
+  window.openEditModal = function() {
+    if (!currentUser) return;
+    document.getElementById('editName').value = currentUser.name || '';
+    document.getElementById('editId').value = currentUser.baseId || '';
+    document.getElementById('editProfileModal').style.display = 'flex';
+  };
+
+  window.closeEditModal = function() {
+    document.getElementById('editProfileModal').style.display = 'none';
+  };
+
+  window.saveProfileChanges = async function() {
+    const name = document.getElementById('editName').value.trim();
+    const customId = document.getElementById('editId').value.trim();
+
+    if (!name || name.length < 3) {
+      showToast('خطأ', 'الاسم يجب أن يكون 3 أحرف على الأقل', 'error');
+      return;
+    }
+    if (!customId || customId.length < 5) {
+      showToast('خطأ', 'ID الحساب يجب أن يكون 5 أرقام على الأقل', 'error');
+      return;
+    }
+
+    try {
+      const btn = event.target;
+      btn.disabled = true;
+      btn.innerHTML = 'جاري الحفظ...';
+
+      const res = await fetch('/api/auth/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name, customId })
+      });
+
+      const data = await res.json();
+      
+      if (data.success) {
+        showToast('تم بنجاح', 'تم تحديث بياناتك', 'success');
+        closeEditModal();
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (err) {
+      showToast('خطأ', err.message || 'فشل التحديث', 'error');
+      const btn = event.target;
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-save"></i> حفظ التعديلات';
+    }
+  };
 
   document.addEventListener('DOMContentLoaded', init);
 })();

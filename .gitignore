@@ -16,3 +16,5 @@ build/
 *.key
 serviceAccountKey.json
 firebase-adminsdk-*.json
+serviceAccountKey.json
+package-lock.json
