@@ -71,4 +71,8 @@
       });
 
       document.querySelector('.login-container').style.animation = 'pulse 1.5s ease-in-out';
+<<<<<<< HEAD
     });
+=======
+    });
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f

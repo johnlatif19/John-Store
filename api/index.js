@@ -5,11 +5,18 @@ const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const admin = require("firebase-admin");
 const path = require("path");
+<<<<<<< HEAD
 const crypto = require("crypto");
+=======
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 const cloudinary = require("cloudinary").v2;
 const cors = require("cors");
 const app = express();
 
+<<<<<<< HEAD
+=======
+// ====== Middlewares ======
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 app.use(cors({
   origin: true,
   credentials: true
@@ -19,6 +26,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.resolve(__dirname, "../public")));
 
+<<<<<<< HEAD
+=======
+// Routes
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 app.get("/", (req, res) => {
   res.sendFile(path.resolve(__dirname, "../public/index.html"));
 });
@@ -35,6 +46,7 @@ app.get("/dashboard", (req, res) => {
   res.sendFile(path.resolve(__dirname, "../public/dashboard.html"));
 });
 
+<<<<<<< HEAD
 app.get("/sign-in", (req, res) => {
   res.sendFile(path.resolve(__dirname, "../public/sign-in.html"));
 });
@@ -51,17 +63,28 @@ app.get("/sign-in.html", (req, res) => res.redirect(301, "/sign-in"));
 app.get("/log-in.html", (req, res) => res.redirect(301, "/log-in"));
 app.get("/account.html", (req, res) => res.redirect(301, "/account"));
 
+=======
+// ====== Multer ======
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 3 * 1024 * 1024 }
 });
 
+<<<<<<< HEAD
+=======
+// ====== Cloudinary Config ======
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+<<<<<<< HEAD
+=======
+// ====== Firebase Admin Init ======
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 function initFirebase() {
   if (admin.apps.length) return;
 
@@ -97,6 +120,10 @@ function nowISO() {
   return new Date().toISOString();
 }
 
+<<<<<<< HEAD
+=======
+// ====== Email ======
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 const transporter = nodemailer.createTransport({
   service: process.env.SMTP_SERVICE || "gmail",
   auth: {
@@ -105,6 +132,10 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+<<<<<<< HEAD
+=======
+// ====== Telegram Notify ======
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 async function telegramNotify(text) {
   try {
     const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -124,6 +155,10 @@ async function telegramNotify(text) {
   }
 }
 
+<<<<<<< HEAD
+=======
+// ====== Auth Helpers ======
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 function requireAdmin(req, res, next) {
   try {
     const token = req.cookies?.admin_token ||
@@ -148,6 +183,7 @@ function setAdminCookie(res, token) {
   });
 }
 
+<<<<<<< HEAD
 function requireUser(req, res, next) {
   try {
     const token = req.cookies?.user_token ||
@@ -216,6 +252,9 @@ function getClientIp(req) {
   return req.ip || req.connection?.remoteAddress || "unknown";
 }
 
+=======
+// ====== Storage Upload ======
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 async function uploadToCloudinary(file) {
   if (!file) return null;
 
@@ -231,6 +270,7 @@ async function uploadToCloudinary(file) {
   });
 }
 
+<<<<<<< HEAD
 async function uploadScreenshotToCloudinary(file) {
   if (!file) return null;
 
@@ -334,10 +374,14 @@ async function sendWelcomeEmail(name, email) {
   }
 }
 
+=======
+// ====== Health ======
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 app.get("/api/health", (req, res) => {
   res.json({ success: true, time: nowISO() });
 });
 
+<<<<<<< HEAD
 app.post("/api/auth/signup", async (req, res) => {
   try {
     const { name, email, password } = req.body || {};
@@ -623,6 +667,9 @@ app.get("/api/account/screens", requireUser, async (req, res) => {
   }
 });
 
+=======
+// ====== Public APIs ======
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 app.post("/api/order", upload.single("screenshot"), async (req, res) => {
   try {
     const { name, playerId, email, ucAmount, bundle, totalAmount, transactionId, couponCode, discountAmount } = req.body;
@@ -642,6 +689,7 @@ app.post("/api/order", upload.single("screenshot"), async (req, res) => {
       }
     }
 
+<<<<<<< HEAD
     let userId = null;
     try {
       const token = req.cookies?.user_token;
@@ -654,6 +702,10 @@ app.post("/api/order", upload.single("screenshot"), async (req, res) => {
     const orderData = {
       name, playerId, email, type,
       userId,
+=======
+    const orderData = {
+      name, playerId, email, type,
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
       ucAmount: ucAmount || null,
       bundle: bundle || null,
       totalAmount: Number(totalAmount),
@@ -737,6 +789,10 @@ app.post("/api/order/confirm-payment", upload.single("screenshot"), async (req, 
   }
 });
 
+<<<<<<< HEAD
+=======
+//الاستفسار 
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 app.post("/api/inquiry", async (req, res) => {
   try {
     const { name, email, message } = req.body;
@@ -779,6 +835,10 @@ app.post("/api/inquiry", async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
+=======
+//الاقتراح
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 app.post("/api/suggestion", async (req, res) => {
   try {
     const { name, contact, message } = req.body;
@@ -796,7 +856,11 @@ app.post("/api/suggestion", async (req, res) => {
     const ref = await firestore().collection("suggestions").add(suggestionData);
 
     telegramNotify(`💡 اقتراح جديد\nالاسم: ${name}\nوسيلة التواصل: ${contact}\nالاقتراح: ${message.substring(0, 100)}`).catch(e => console.error(e));
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
     const notifyTo = process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER;
     if (notifyTo) {
       transporter.sendMail({
@@ -819,15 +883,32 @@ app.post("/api/suggestion", async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 const lookupRateLimit = new Map();
 const RATE_LIMIT_WINDOW = 60 * 1000;
 const MAX_REQUESTS_PER_WINDOW = 10;
+=======
+
+// ========================================================
+// ====== NEW: PUBG Mobile Player Lookup System ===========
+// ========================================================
+
+// حماية بسيطة من السبام (Rate Limiting)
+const lookupRateLimit = new Map();
+const RATE_LIMIT_WINDOW = 60 * 1000; // دقيقة واحدة
+const MAX_REQUESTS_PER_WINDOW = 10; // 10 طلبات كحد أقصى في الدقيقة لكل IP
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 
 app.get("/api/lookup-player/:uid", async (req, res) => {
   try {
     const clientIp = req.ip || req.headers['x-forwarded-for'] || 'unknown';
     const now = Date.now();
+<<<<<<< HEAD
 
+=======
+    
+    // فحص الـ Rate Limit
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
     if (!lookupRateLimit.has(clientIp)) {
       lookupRateLimit.set(clientIp, []);
     }
@@ -838,6 +919,10 @@ app.get("/api/lookup-player/:uid", async (req, res) => {
     requestTimes.push(now);
     lookupRateLimit.set(clientIp, requestTimes);
 
+<<<<<<< HEAD
+=======
+    // التحقق من الـ UID
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
     const uid = req.params.uid;
     if (!uid || isNaN(uid) || uid.length < 5) {
       return res.status(400).json({ success: false, message: "يرجى إدخال ID صحيح" });
@@ -849,6 +934,10 @@ app.get("/api/lookup-player/:uid", async (req, res) => {
       return res.status(500).json({ success: false, message: "خدمة البحث غير مهيأة حالياً" });
     }
 
+<<<<<<< HEAD
+=======
+    // إرسال الطلب لـ RapidAPI
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
     const response = await fetch(`https://id-game-checker.p.rapidapi.com/pubgm-global/${uid}`, {
       method: 'GET',
       headers: {
@@ -859,6 +948,10 @@ app.get("/api/lookup-player/:uid", async (req, res) => {
 
     const data = await response.json();
 
+<<<<<<< HEAD
+=======
+    // معالجة النتيجة
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
     if (data && data.error === false && data.data && data.data.username) {
       return res.json({ success: true, name: data.data.username });
     } else {
@@ -870,6 +963,13 @@ app.get("/api/lookup-player/:uid", async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
+=======
+// ========================================================
+
+
+// ====== Admin APIs ======
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 app.post("/api/admin/login", async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ success: false, message: "بيانات الدخول مطلوبة" });
@@ -929,6 +1029,7 @@ app.get("/api/admin/messages", requireAdmin, async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 app.get("/api/admin/users", requireAdmin, async (req, res) => {
   try {
     const snap = await firestore().collection("users").orderBy("createdAt", "desc").get();
@@ -1020,6 +1121,8 @@ app.get("/api/admin/users/:id", requireAdmin, async (req, res) => {
   }
 });
 
+=======
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 app.post("/api/admin/update-status", requireAdmin, async (req, res) => {
   try {
     const { id, status } = req.body;
@@ -1099,10 +1202,18 @@ app.post("/api/admin/reply-inquiry", requireAdmin, async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 app.post("/api/admin/send-message", requireAdmin, async (req, res) => {
   try {
     const { email, subject, message } = req.body;
 
+=======
+// تحسين واجهة إرسال الرسائل المباشرة
+app.post("/api/admin/send-message", requireAdmin, async (req, res) => {
+  try {
+    const { email, subject, message } = req.body;
+    
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
     if (!email || !subject || !message) {
       return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة: البريد الإلكتروني، العنوان، والرسالة" });
     }
@@ -1117,11 +1228,19 @@ app.post("/api/admin/send-message", requireAdmin, async (req, res) => {
       sent_at: admin.firestore.FieldValue.serverTimestamp(),
       status: "pending"
     };
+<<<<<<< HEAD
 
     const docRef = await firestore().collection("messages").add(messageData);
     const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USER;
     const smtpPass = process.env.SMTP_PASS || process.env.EMAIL_PASS;
 
+=======
+    
+    const docRef = await firestore().collection("messages").add(messageData);
+    const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USER;
+    const smtpPass = process.env.SMTP_PASS || process.env.EMAIL_PASS;
+    
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
     if (!smtpUser || !smtpPass) {
       console.error("❌ SMTP غير مهيأ: تأكد من وجود SMTP_USER و SMTP_PASS في البيئة");
       await docRef.update({ status: "failed", error: "SMTP configuration missing" });
@@ -1156,6 +1275,7 @@ app.post("/api/admin/send-message", requireAdmin, async (req, res) => {
       });
 
       console.log("✅ تم إرسال البريد:", info.messageId);
+<<<<<<< HEAD
 
       await docRef.update({
         status: "sent", message_id: info.messageId,
@@ -1169,6 +1289,21 @@ app.post("/api/admin/send-message", requireAdmin, async (req, res) => {
 
       await docRef.update({ status: "failed", error: smtpError.message || "SMTP sending failed" });
 
+=======
+      
+      await docRef.update({ 
+        status: "sent", message_id: info.messageId,
+        sent_at: admin.firestore.FieldValue.serverTimestamp()
+      });
+      
+      return res.json({ success: true, message: "تم إرسال الرسالة بنجاح", messageId: info.messageId });
+      
+    } catch (smtpError) {
+      console.error("❌ فشل إرسال البريد:", smtpError);
+      
+      await docRef.update({ status: "failed", error: smtpError.message || "SMTP sending failed" });
+      
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
       let userMessage = "فشل إرسال الرسالة. ";
       if (smtpError.code === 'EAUTH') {
         userMessage += "خطأ في المصادقة. يرجى التحقق من إعدادات البريد الإلكتروني.";
@@ -1179,19 +1314,29 @@ app.post("/api/admin/send-message", requireAdmin, async (req, res) => {
       } else {
         userMessage += "يرجى المحاولة مرة أخرى أو التواصل مع الدعم.";
       }
+<<<<<<< HEAD
 
       return res.status(500).json({
+=======
+      
+      return res.status(500).json({ 
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
         success: false, message: userMessage,
         details: process.env.NODE_ENV === 'development' ? smtpError.message : undefined
       });
     }
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
   } catch (err) {
     console.error("❌ خطأ في /api/admin/send-message:", err);
     return res.status(500).json({ success: false, message: "حدث خطأ داخلي في الخادم. يرجى المحاولة لاحقاً." });
   }
 });
 
+<<<<<<< HEAD
 app.post("/api/admin/screens", requireAdmin, upload.single("image"), async (req, res) => {
   try {
     const { targetBaseId, label } = req.body;
@@ -1250,6 +1395,9 @@ app.delete("/api/admin/screens/:id", requireAdmin, async (req, res) => {
   }
 });
 
+=======
+// ====== COUPONS SYSTEM ======
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
 function getCouponsCollection() {
   return firestore().collection("coupons");
 }
@@ -1342,4 +1490,8 @@ app.post("/api/use-coupon", async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 module.exports = app;
+=======
+module.exports = app;
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f

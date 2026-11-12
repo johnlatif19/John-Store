@@ -278,4 +278,8 @@
       if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && ['I','J'].includes(e.key)) || (e.ctrlKey && e.key === 'U')) {
         e.preventDefault();
       }
+<<<<<<< HEAD
     });
+=======
+    });
+>>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
