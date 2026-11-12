@@ -1246,7 +1246,7 @@ app.post("/api/use-coupon", async (req, res) => {
 
 app.post("/api/create-invoice", async (req, res) => {
   try {
-    const { orderId, description, amount, customerPhone, customerName } = req.body;
+    const { orderId, description, amount } = req.body;
     
     if (!orderId) {
       return res.status(400).json({ success: false, message: "رقم الطلب مطلوب" });
@@ -1264,11 +1264,9 @@ app.post("/api/create-invoice", async (req, res) => {
       },
       body: JSON.stringify({
         orderId: String(orderId),
-        description: description || `طلب من متجر John Store`,
+        description: String(description || 'طلب من متجر John Store'),
         amount: Number(amount),
-        paymentMethod: 'vodafone_cash',
-        customerName: customerName || '',
-        customerPhone: customerPhone || ''
+        paymentMethod: 'vodafone_cash'
       })
     });
 
