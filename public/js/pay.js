@@ -95,8 +95,4 @@
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-check-circle"></i> تأكيد إتمام الدفع';
       }
-<<<<<<< HEAD
     });
-=======
-    });
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f

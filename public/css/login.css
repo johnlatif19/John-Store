@@ -274,8 +274,4 @@
       vertical-align: middle;
     }
 
-<<<<<<< HEAD
     @keyframes spin { to { transform: rotate(360deg); } }
-=======
-    @keyframes spin { to { transform: rotate(360deg); } }
->>>>>>> 86e1800c02157ef548368a0817eb4cd46c625a9f
