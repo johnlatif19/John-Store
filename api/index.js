@@ -15,10 +15,14 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(cookieParser());
 
 // ==================== Daftar Cash Webhook ====================
-// يجب وضعه قبل express.json()، لأن التحقق من HMAC يتطلب raw body
 app.post("/api/webhook/daftar-cash", express.raw({ type: "application/json" }), async (req, res) => {
   try {
-    // جرب أسماء رؤوس متعددة (يجب تأكيدها من الوثائق أو السجلات)
+    console.log("=== Webhook received ===");
+    console.log("Webhook headers:", JSON.stringify(req.headers, null, 2));
+    console.log("Secret exists:", !!process.env.DAFTAR_SIGNATURE_SECRET);
+    console.log("Secret length:", process.env.DAFTAR_SIGNATURE_SECRET ? process.env.DAFTAR_SIGNATURE_SECRET.length : 0);
+    console.log("Raw body preview:", req.body.toString().substring(0, 300));
+
     const signature =
       req.headers["x-daftar-signature"] ||
       req.headers["x-webhook-signature"] ||
@@ -35,14 +39,15 @@ app.post("/api/webhook/daftar-cash", express.raw({ type: "application/json" }), 
       .update(req.body)
       .digest("hex");
 
+    console.log("Signature from header:", signature);
+    console.log("Expected signature:", expectedSignature);
+
     if (signature !== expectedSignature) {
       console.log("Webhook signature mismatch");
       return res.status(401).json({ success: false, message: "Invalid signature" });
     }
 
     const rawBody = req.body.toString();
-    console.log("Daftar webhook raw body:", rawBody);
-
     let payload = {};
     try {
       payload = JSON.parse(rawBody);
@@ -51,7 +56,6 @@ app.post("/api/webhook/daftar-cash", express.raw({ type: "application/json" }), 
       return res.status(400).json({ success: false, message: "Invalid JSON" });
     }
 
-    // جرب أسماء حقول متعددة
     const orderId =
       payload.order_id ||
       payload.orderId ||
@@ -661,7 +665,6 @@ app.post("/api/order", upload.single("screenshot"), async (req, res) => {
 
     const ref = await firestore().collection("orders").add(orderData);
 
-    // استدعاء Daftar Cash لإنشاء صفحة الدفع
     const daftarRes = await fetch("https://www.daftarcash.com/api/v1/payments/create/", {
       method: "POST",
       headers: {
@@ -678,7 +681,6 @@ app.post("/api/order", upload.single("screenshot"), async (req, res) => {
       }),
     });
 
-    // قراءة النص أولاً، لتجنب خطأ تحليل JSON
     const daftarRawText = await daftarRes.text();
     console.log("Daftar Cash create status:", daftarRes.status);
     console.log("Daftar Cash create body:", daftarRawText);
@@ -704,7 +706,6 @@ app.post("/api/order", upload.single("screenshot"), async (req, res) => {
       });
     }
 
-    // تجربة أسماء حقول متعددة لرابط الدفع
     const checkoutUrl =
       daftarData.checkout_url ||
       daftarData.payment_url ||
