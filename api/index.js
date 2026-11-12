@@ -646,7 +646,7 @@ app.post("/api/order", upload.single("screenshot"), async (req, res) => {
         const payload = jwt.verify(token, process.env.USER_JWT_SECRET || process.env.ADMIN_JWT_SECRET);
         userId = payload.uid || null;
       }
-    } catch { /* ignore */ }
+    } catch { }
 
     const orderData = {
       name, playerId, email, type, userId,
@@ -1241,6 +1241,77 @@ app.post("/api/use-coupon", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.json({ success: false });
+  }
+});
+
+app.post("/api/create-invoice", async (req, res) => {
+  try {
+    const { orderId, description, amount, customerPhone, customerName } = req.body;
+    if (!orderId || !amount) return res.status(400).json({ success: false, message: "بيانات ناقصة" });
+
+    const response = await fetch(`${process.env.JOHN_PAY_API_URL}/api/v1/invoices`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.JOHN_PAY_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        orderId,
+        description: description || `طلب من متجر John Store`,
+        amount: Number(amount),
+        paymentMethod: 'vodafone_cash',
+        customerName: customerName || '',
+        customerPhone: customerPhone || ''
+      })
+    });
+
+    const data = await response.json();
+    if (!data.success) {
+      return res.status(400).json({ success: false, message: data.error || 'فشل إنشاء الفاتورة' });
+    }
+
+    res.json({ success: true, checkout_url: data.data.checkout_url, invoice_id: data.data.invoice_id });
+  } catch (error) {
+    console.error("Create invoice error:", error);
+    res.status(500).json({ success: false, message: "حدث خطأ أثناء الاتصال ببوابة الدفع" });
+  }
+});
+
+app.post("/api/webhook/johnpay", async (req, res) => {
+  try {
+    const signature = req.headers['x-johnpay-signature'];
+    const timestamp = req.headers['x-johnpay-timestamp'];
+    const eventId = req.headers['x-johnpay-event-id'];
+
+    if (!signature || !timestamp || !eventId) {
+      return res.status(400).json({ error: 'Missing webhook headers' });
+    }
+
+    const expectedSignature = crypto.createHmac('sha256', process.env.JOHN_PAY_WEBHOOK_SECRET)
+      .update(`${timestamp}.${eventId}.${JSON.stringify(req.body)}`)
+      .digest('hex');
+
+    if (signature !== expectedSignature) {
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+
+    const { event, order_id, invoice_id, transaction_reference } = req.body;
+
+    if (event === 'payment.paid') {
+      await firestore().collection('orders').doc(order_id).update({
+        status: 'تم الدفع - قيد المراجعة',
+        invoiceId: invoice_id,
+        transactionId: transaction_reference || null,
+        payment_confirmed_at: admin.firestore.FieldValue.serverTimestamp()
+      });
+      
+      await telegramNotify(`💰 تم استلام دفعة ناجحة عبر JOHN PAY\nرقم الطلب: ${order_id}\nالمبلغ: ${req.body.amount} ج.م`);
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Webhook error:", error);
+    res.status(500).json({ error: 'Webhook processing failed' });
   }
 });
 
