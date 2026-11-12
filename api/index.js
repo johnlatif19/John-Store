@@ -1247,7 +1247,14 @@ app.post("/api/use-coupon", async (req, res) => {
 app.post("/api/create-invoice", async (req, res) => {
   try {
     const { orderId, description, amount, customerPhone, customerName } = req.body;
-    if (!orderId || !amount) return res.status(400).json({ success: false, message: "بيانات ناقصة" });
+    
+    if (!orderId) {
+      return res.status(400).json({ success: false, message: "رقم الطلب مطلوب" });
+    }
+    
+    if (!amount || isNaN(Number(amount))) {
+      return res.status(400).json({ success: false, message: "المبلغ غير صالح" });
+    }
 
     const response = await fetch(`${process.env.JOHN_PAY_API_URL}/api/v1/invoices`, {
       method: 'POST',
@@ -1256,7 +1263,7 @@ app.post("/api/create-invoice", async (req, res) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        orderId,
+        orderId: String(orderId),
         description: description || `طلب من متجر John Store`,
         amount: Number(amount),
         paymentMethod: 'vodafone_cash',
@@ -1266,7 +1273,9 @@ app.post("/api/create-invoice", async (req, res) => {
     });
 
     const data = await response.json();
+    
     if (!data.success) {
+      console.error("John Pay API Error:", data); 
       return res.status(400).json({ success: false, message: data.error || 'فشل إنشاء الفاتورة' });
     }
 
