@@ -1264,9 +1264,9 @@ app.post("/api/create-invoice", async (req, res) => {
       },
       body: JSON.stringify({
         orderId: String(orderId),
-        description: String(description || 'طلب من متجر John Store'),
+        description: String(description || 'طلب من متجر John Store').substring(0, 200),
         amount: Number(amount),
-        paymentMethod: 'vodafone_cash'
+        paymentMethod: 'orange_cash'
       })
     });
 
