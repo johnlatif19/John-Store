@@ -8,6 +8,7 @@ const path = require("path");
 const crypto = require("crypto");
 const cloudinary = require("cloudinary").v2;
 const cors = require("cors");
+const bcrypt = require("bcryptjs");
 const app = express();
 
 app.use(cors({
@@ -255,54 +256,59 @@ function buildWelcomeEmailHtml(name, accountUrl) {
 <meta charset="UTF-8">
 <title>مرحبًا بك في John Store</title>
 </head>
-<body style="margin:0;padding:0;background:#0f0f1a;font-family:Tahoma,Arial,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0f0f1a;padding:30px 0;">
+<body style="margin:0;padding:0;background:#f5f7fb;font-family:'Cairo','Tajawal',Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f7fb;padding:40px 20px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#1a1a2e;border-radius:18px;overflow:hidden;border:1px solid rgba(255,122,0,0.2);">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e0e0e0;box-shadow:0 4px 15px rgba(0,0,0,0.05);">
+          
           <tr>
-            <td align="center" style="padding:32px 24px 12px;">
-              <img src="https://i.postimg.cc/x8xtX2KR/john-store.png" alt="John Store" width="80" height="80" style="border-radius:50%;border:3px solid #ff7a00;display:block;">
-              <h1 style="margin:14px 0 4px;color:#ff7a00;font-size:22px;">John Store</h1>
-              <p style="margin:0;color:#a0a0b0;font-size:13px;">متجر شحن شدات ببجي</p>
+            <td align="center" style="background-color:#1a1a2e;padding:35px 20px;">
+              <img src="cid:johnstore-logo" alt="John Store" width="80" height="80" style="border-radius:50%;border:3px solid #ffb800;display:block;margin-bottom:15px;">
+              <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:bold;letter-spacing:1px;">John <span style="color:#ffb800;">Store</span></h1>
+              <p style="margin:5px 0 0 0;color:#a0a0b0;font-size:14px;">متجر شحن شدات ببجي</p>
             </td>
           </tr>
+
           <tr>
-            <td style="padding:10px 32px 24px;">
-              <div style="background:rgba(255,122,0,0.08);border:1px solid rgba(255,122,0,0.25);border-radius:14px;padding:22px;">
-                <h2 style="margin:0 0 14px;color:#ffffff;font-size:18px;">مرحبًا ${safeName}،</h2>
-                <p style="margin:0 0 14px;color:#d0d0e0;font-size:15px;line-height:1.8;">
-                  تم إنشاء حسابك على <strong style="color:#ff7a00;">John Store</strong>.
-                </p>
-                <p style="margin:0 0 20px;color:#d0d0e0;font-size:15px;line-height:1.8;">
-                  <strong>اسم المستخدم:</strong> ${safeName}
-                </p>
-                <p style="margin:0 0 22px;color:#d0d0e0;font-size:15px;line-height:1.8;">
-                  يمكنك الوصول إلى منطقة حسابك لعرض الطلبات، وتغيير كلمة المرور الخاصة بك والمزيد عبر الرابط أدناه:
-                </p>
-                <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
-                  <tr>
-                    <td align="center" style="border-radius:12px;background:#ff7a00;">
-                      <a href="${accountUrl}" target="_blank" style="display:inline-block;padding:14px 34px;color:#000;text-decoration:none;font-weight:bold;font-size:15px;border-radius:12px;">
-                        لوحة حسابي
-                      </a>
-                    </td>
-                  </tr>
-                </table>
-              </div>
-              <p style="margin:24px 0 0;color:#a0a0b0;font-size:14px;text-align:center;line-height:1.7;">
+            <td style="padding:30px 20px;">
+              <h2 style="color:#333333;margin-top:0;font-size:20px;border-bottom:2px solid #ffb800;padding-bottom:10px;display:inline-block;">مرحبًا ${safeName}،</h2>
+              
+              <p style="color:#444444;line-height:1.8;font-size:16px;margin-top:20px;">
+                تم إنشاء حسابك بنجاح على <strong style="color:#ff7a00;">John Store</strong>.
+              </p>
+              <p style="color:#444444;line-height:1.8;font-size:16px;">
+                <strong>اسم المستخدم:</strong> ${safeName}
+              </p>
+              <p style="color:#444444;line-height:1.8;font-size:16px;">
+                يمكنك الوصول إلى منطقة حسابك لعرض الطلبات، وتغيير كلمة المرور الخاصة بك والمزيد عبر الرابط أدناه:
+              </p>
+
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:30px auto;">
+                <tr>
+                  <td align="center" style="border-radius:8px;background:#ffb800;">
+                    <a href="${accountUrl}" target="_blank" style="display:inline-block;padding:14px 34px;color:#000;text-decoration:none;font-weight:bold;font-size:16px;border-radius:8px;">
+                      لوحة حسابي
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="color:#888888;font-size:14px;text-align:center;margin-top:30px;">
                 Welcome To <strong style="color:#ff7a00;">John Store</strong>.
               </p>
             </td>
           </tr>
+
           <tr>
-            <td align="center" style="padding:16px 24px 28px;border-top:1px solid rgba(255,255,255,0.06);">
-              <p style="margin:0;color:#606070;font-size:12px;line-height:1.7;">
+            <td align="center" style="background-color:#f1f3f5;padding:20px;border-top:1px solid #e0e0e0;">
+              <p style="margin:0;color:#888888;font-size:13px;line-height:1.6;">
                 هذا البريد إلكتروني آلي، يرجى عدم الرد عليه.<br>
-                © ${new Date().getFullYear()} John Store — جميع الحقوق محفوظة
+                © ${new Date().getFullYear()} John Store - جميع الحقوق محفوظة.
               </p>
             </td>
           </tr>
+
         </table>
       </td>
     </tr>
@@ -325,6 +331,11 @@ async function sendWelcomeEmail(name, email) {
       from: `"John Store" <${from}>`,
       to: email,
       subject: "مرحبًا بك في John Store — تم إنشاء حسابك",
+      attachments: [{
+        filename: 'john-store.png',
+        path: 'https://i.postimg.cc/x8xtX2KR/john-store.png',
+        cid: 'johnstore-logo'
+      }],
       html: buildWelcomeEmailHtml(name, accountUrl),
       text: `مرحبًا ${name},\n\nتم إنشاء حسابك على John Store.\nاسم المستخدم: ${name}\n\nيمكنك الوصول إلى منطقة حسابك عبر الرابط:\n${accountUrl}\n\nWelcome To John Store.`
     });
@@ -649,7 +660,7 @@ app.post("/api/order", upload.single("screenshot"), async (req, res) => {
 
     telegramNotify(`🧾 طلب جديد\nالاسم: ${name}\nايدي اللاعب: ${playerId}\nالبريد: ${email}\nالنوع: ${type}\nالإجمالي: ${totalAmount}\nID: ${ref.id}`).catch(e => console.error(e));
 
-    const notifyTo = process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER || process.env.EMAIL_USER;
+    const notifyTo = process.env.ADMIN_EMAIL || process.env.SMTP_USER || process.env.EMAIL_USER;
     if (notifyTo) {
       transporter.sendMail({
         from: `"Trip Store" <${process.env.SMTP_USER || process.env.EMAIL_USER}>`,
@@ -716,7 +727,7 @@ app.post("/api/inquiry", async (req, res) => {
 
     telegramNotify(`📩 استفسار جديد\nالاسم: ${name || "غير مذكور"}\nالبريد: ${email}\nالرسالة: ${message.substring(0, 100)}`).catch(e => console.error("Telegram notify error:", e));
 
-    const notifyTo = process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER;
+    const notifyTo = process.env.ADMIN_EMAIL || process.env.SMTP_USER;
     if (notifyTo) {
       transporter.sendMail({
         from: `"فريق الدعم" <${process.env.SMTP_USER}>`,
@@ -743,7 +754,7 @@ app.post("/api/suggestion", async (req, res) => {
 
     telegramNotify(`💡 اقتراح جديد\nالاسم: ${name}\nوسيلة التواصل: ${contact}\nالاقتراح: ${message.substring(0, 100)}`).catch(e => console.error(e));
 
-    const notifyTo = process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER;
+    const notifyTo = process.env.ADMIN_EMAIL || process.env.SMTP_USER;
     if (notifyTo) {
       transporter.sendMail({
         from: `"اقتراحات الموقع" <${process.env.SMTP_USER}>`,
@@ -796,13 +807,26 @@ app.get("/api/lookup-player/:uid", async (req, res) => {
 });
 
 app.post("/api/admin/login", async (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ success: false, message: "بيانات الدخول مطلوبة" });
-  if (username !== process.env.ADMIN_USER || password !== process.env.ADMIN_PASS) return res.status(401).json({ success: false, message: "بيانات الدخول غير صحيحة" });
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ success: false, message: "بيانات الدخول مطلوبة" });
+    
+    if (username !== process.env.ADMIN_USER) {
+      return res.status(401).json({ success: false, message: "بيانات الدخول غير صحيحة" });
+    }
 
-  const token = jwt.sign({ role: "admin", u: username }, process.env.ADMIN_JWT_SECRET, { expiresIn: "7d" });
-  setAdminCookie(res, token);
-  return res.json({ success: true });
+    const isMatch = await bcrypt.compare(password, process.env.ADMIN_PASS_HASH);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: "بيانات الدخول غير صحيحة" });
+    }
+
+    const token = jwt.sign({ role: "admin", u: username }, process.env.ADMIN_JWT_SECRET, { expiresIn: "7d" });
+    setAdminCookie(res, token);
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("Admin login error:", error);
+    return res.status(500).json({ success: false, message: "حدث خطأ أثناء تسجيل الدخول" });
+  }
 });
 
 app.post("/api/admin/logout", requireAdmin, (req, res) => {
@@ -1029,23 +1053,37 @@ app.post("/api/admin/send-message", requireAdmin, async (req, res) => {
         from: `"John Store فريق الدعم" <${smtpUser}>`,
         to: email,
         subject: subject,
+        attachments: [{
+          filename: 'john-store.png',
+          path: 'https://i.postimg.cc/x8xtX2KR/john-store.png',
+          cid: 'johnstore-logo'
+        }],
         html: `
-          <div dir="rtl" style="font-family: 'Tajawal', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
-            <div style="text-align: center; margin-bottom: 20px;">
-              <img src="https://i.postimg.cc/x8xtX2KR/john-store.png" alt="John Store" style="width: 80px; height: 80px; border-radius: 50%;">
-              <h2 style="color: #ff7a00; margin-top: 10px;">John Store</h2>
+          <div style="font-family: 'Cairo', 'Tajawal', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);" dir="rtl">
+            
+            <div style="background-color: #1a1a2e; padding: 35px 20px; text-align: center;">
+              <img src="cid:johnstore-logo" alt="John Store" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #ffb800; display: inline-block; margin-bottom: 15px;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 1px;">John <span style="color: #ffb800;">Store</span></h1>
+              <p style="color: #a0a0b0; margin: 5px 0 0 0; font-size: 14px;">متجر شحن شدات ببجي</p>
             </div>
-            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
-              <h3 style="color: #1a1a2e; margin-top: 0;">${subject}</h3>
-              <div style="color: #333; line-height: 1.6;">
-                ${String(message).replace(/\n/g, "<br>").replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+
+            <div style="padding: 30px 20px;">
+              <h2 style="color: #333333; margin-top: 0; font-size: 20px; border-bottom: 2px solid #ffb800; padding-bottom: 10px; display: inline-block;">${subject}</h2>
+              
+              <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-right: 4px solid #ffb800;">
+                <p style="color: #444444; line-height: 1.8; margin: 0; font-size: 16px; white-space: pre-wrap;">
+                  ${String(message).replace(/\n/g, "<br>").replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+                </p>
               </div>
             </div>
-            <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
-            <p style="color: #666; font-size: 12px; text-align: center;">
-              هذا البريد إلكتروني آلي، يرجى عدم الرد عليه.<br>
-              مع تحيات فريق دعم John Store
-            </p>
+
+            <div style="background-color: #f1f3f5; padding: 20px; text-align: center; border-top: 1px solid #e0e0e0;">
+              <p style="color: #888888; font-size: 13px; margin: 0; line-height: 1.6;">
+                هذا البريد إلكتروني آلي، يرجى عدم الرد عليه.<br>
+                © ${new Date().getFullYear()} John Store - جميع الحقوق محفوظة.
+              </p>
+            </div>
+            
           </div>
         `,
         text: `John Store\n\nالموضوع: ${subject}\n\n${message}\n\nهذا البريد إلكتروني آلي، يرجى عدم الرد عليه.`
