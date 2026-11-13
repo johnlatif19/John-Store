@@ -1,5 +1,5 @@
 let currentInquiryId = null, currentInquiryEmail = null, currentInquiryMessage = null;
-let orders = [], inquiries = [], suggestions = [], users = [], loginLogs = [];
+let orders = [], inquiries = [], suggestions = [], users = [], loginLogs = [], screens = [];
 
 function escapeHtml(str) {
   if (!str) return '';
@@ -568,6 +568,109 @@ async function deleteCoupon(couponId) {
   }
 }
 
+/* ================= السكرينات ================= */
+
+async function loadScreens() {
+  try {
+    const res = await fetch("/api/admin/screens", { credentials: "include" });
+    if (!res.ok) throw new Error("فشل التحميل");
+    const data = await res.json();
+    screens = data.data || [];
+    renderScreens(screens);
+  } catch (e) {
+    console.error(e);
+    document.getElementById('screensList').innerHTML =
+      `<tr><td colspan="6" class="alert-danger">خطأ في تحميل السكرينات</td></tr>`;
+  }
+}
+
+function renderScreens(list) {
+  const tbody = document.getElementById('screensList');
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">لا توجد سكرينات</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = '';
+  list.forEach(s => {
+    tbody.insertAdjacentHTML('beforeend', `
+      <tr>
+        <td><img src="${s.imageUrl}" class="screenshot-preview" onclick="openImageModal('${s.imageUrl}')"></td>
+        <td><code>${escapeHtml(s.targetBaseId || '-')}</code></td>
+        <td>${escapeHtml(s.orderId || '-')}</td>
+        <td>${escapeHtml(s.label || '-')}</td>
+        <td>${s.createdAt ? formatDate(s.createdAt) : '-'}</td>
+        <td><button class="btn btn-sm btn-danger" onclick="deleteScreen('${s.id}')"><i class="fas fa-trash"></i></button></td>
+      </tr>
+    `);
+  });
+}
+
+async function uploadScreen() {
+  const targetBaseId = document.getElementById('screenTargetId').value.trim();
+  const orderId = document.getElementById('screenOrderId').value.trim();
+  const label = document.getElementById('screenLabel').value.trim();
+  const fileInput = document.getElementById('screenImage');
+
+  if (!targetBaseId || !orderId) {
+    showAlert('warning', 'ID المستخدم ورقم الطلب مطلوبان');
+    return;
+  }
+  if (!fileInput.files || !fileInput.files[0]) {
+    showAlert('warning', 'يرجى اختيار صورة');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('targetBaseId', targetBaseId);
+  formData.append('orderId', orderId);
+  formData.append('label', label);
+  formData.append('image', fileInput.files[0]);
+
+  const btn = event ? event.target : null;
+  const original = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الرفع...'; }
+
+  try {
+    const res = await fetch("/api/admin/screens", {
+      method: "POST",
+      credentials: "include",
+      body: formData
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.message || 'فشل الرفع');
+
+    showAlert('success', 'تم رفع السكرين بنجاح');
+    document.getElementById('screenTargetId').value = '';
+    document.getElementById('screenOrderId').value = '';
+    document.getElementById('screenLabel').value = '';
+    fileInput.value = '';
+    loadScreens();
+  } catch (e) {
+    showAlert('danger', e.message || 'حدث خطأ أثناء الرفع');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = original; }
+  }
+}
+
+async function deleteScreen(id) {
+  if (!confirm("حذف السكرين نهائياً؟")) return;
+  try {
+    const res = await fetch(`/api/admin/screens/${id}`, {
+      method: "DELETE",
+      credentials: "include"
+    });
+    const data = await res.json();
+    if (data.success) {
+      showAlert('success', 'تم الحذف');
+      loadScreens();
+    } else throw new Error(data.message);
+  } catch (e) {
+    showAlert('danger', 'فشل الحذف');
+  }
+}
+
+/* ================= التهيئة ================= */
+
 window.addEventListener('DOMContentLoaded', () => {
   loadOrders();
   loadUsers();
@@ -575,10 +678,15 @@ window.addEventListener('DOMContentLoaded', () => {
   loadInquiries();
   loadSuggestions();
   loadCoupons();
+  loadScreens();
 
   setInterval(async () => {
     try {
-      await Promise.all([loadOrders(), loadUsers(), loadLoginLogs(), loadInquiries(), loadSuggestions(), loadCoupons()]);
+      await Promise.all([
+        loadOrders(), loadUsers(), loadLoginLogs(),
+        loadInquiries(), loadSuggestions(), loadCoupons(),
+        loadScreens()
+      ]);
     } catch (e) {
       console.error("Auto refresh error:", e);
     }
