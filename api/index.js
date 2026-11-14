@@ -20,6 +20,79 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.resolve(__dirname, "../public")));
 
+function requireAdmin(req, res, next) {
+  try {
+    const token = req.cookies?.admin_token ||
+      (req.headers.authorization?.startsWith("Bearer ") ? req.headers.authorization.slice(7) : null);
+
+    if (!token) return res.status(403).json({ success: false, message: "غير مصرح" });
+
+    const payload = jwt.verify(token, process.env.ADMIN_JWT_SECRET);
+    req.admin = payload;
+    next();
+  } catch (e) {
+    return res.status(403).json({ success: false, message: "غير مصرح" });
+  }
+}
+
+function setAdminCookie(res, token) {
+  res.cookie("admin_token", token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000
+  });
+}
+
+function requireUser(req, res, next) {
+  try {
+    const token = req.cookies?.user_token ||
+      (req.headers.authorization?.startsWith("Bearer ") ? req.headers.authorization.slice(7) : null);
+
+    if (!token) return res.status(401).json({ success: false, message: "غير مصرح، يرجى تسجيل الدخول" });
+
+    const payload = jwt.verify(token, process.env.USER_JWT_SECRET || process.env.ADMIN_JWT_SECRET);
+    req.user = payload;
+    next();
+  } catch (e) {
+    return res.status(401).json({ success: false, message: "جلسة غير صالحة، يرجى تسجيل الدخول" });
+  }
+}
+
+function setUserCookie(res, token, remember) {
+  const maxAge = remember ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+  res.cookie("user_token", token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    maxAge
+  });
+}
+
+function requireAdminPage(req, res, next) {
+  try {
+    const token = req.cookies?.admin_token;
+    if (!token) return res.redirect("/login");
+    jwt.verify(token, process.env.ADMIN_JWT_SECRET);
+    next();
+  } catch (e) {
+    res.clearCookie("admin_token");
+    return res.redirect("/login");
+  }
+}
+
+function requireUserPage(req, res, next) {
+  try {
+    const token = req.cookies?.user_token;
+    if (!token) return res.redirect("/log-in");
+    jwt.verify(token, process.env.USER_JWT_SECRET || process.env.ADMIN_JWT_SECRET);
+    next();
+  } catch (e) {
+    res.clearCookie("user_token");
+    return res.redirect("/log-in");
+  }
+}
+
 app.get("/", (req, res) => {
   res.redirect("/log-in");
 });
@@ -29,10 +102,17 @@ app.get("/test", (req, res) => {
 });
 
 app.get("/login", (req, res) => {
+  try {
+    const token = req.cookies?.admin_token;
+    if (token) {
+      jwt.verify(token, process.env.ADMIN_JWT_SECRET);
+      return res.redirect("/dashboard");
+    }
+  } catch (e) {}
   res.sendFile(path.resolve(__dirname, "../public/login.html"));
 });
 
-app.get("/dashboard", (req, res) => {
+app.get("/dashboard", requireAdminPage, (req, res) => {
   res.sendFile(path.resolve(__dirname, "../public/dashboard.html"));
 });
 
@@ -41,10 +121,17 @@ app.get("/sign-in", (req, res) => {
 });
 
 app.get("/log-in", (req, res) => {
+  try {
+    const token = req.cookies?.user_token;
+    if (token) {
+      jwt.verify(token, process.env.USER_JWT_SECRET || process.env.ADMIN_JWT_SECRET);
+      return res.redirect("/index");
+    }
+  } catch (e) {}
   res.sendFile(path.resolve(__dirname, "../public/log-in.html"));
 });
 
-app.get("/account", (req, res) => {
+app.get("/account", requireUserPage, (req, res) => {
   res.sendFile(path.resolve(__dirname, "../public/account.html"));
 });
 
@@ -122,55 +209,6 @@ async function telegramNotify(text) {
   } catch (e) {
     console.error("Telegram notify failed:", e?.message || e);
   }
-}
-
-function requireAdmin(req, res, next) {
-  try {
-    const token = req.cookies?.admin_token ||
-      (req.headers.authorization?.startsWith("Bearer ") ? req.headers.authorization.slice(7) : null);
-
-    if (!token) return res.status(403).json({ success: false, message: "غير مصرح" });
-
-    const payload = jwt.verify(token, process.env.ADMIN_JWT_SECRET);
-    req.admin = payload;
-    next();
-  } catch (e) {
-    return res.status(403).json({ success: false, message: "غير مصرح" });
-  }
-}
-
-function setAdminCookie(res, token) {
-  res.cookie("admin_token", token, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000
-  });
-}
-
-function requireUser(req, res, next) {
-  try {
-    const token = req.cookies?.user_token ||
-      (req.headers.authorization?.startsWith("Bearer ") ? req.headers.authorization.slice(7) : null);
-
-    if (!token) return res.status(401).json({ success: false, message: "غير مصرح، يرجى تسجيل الدخول" });
-
-    const payload = jwt.verify(token, process.env.USER_JWT_SECRET || process.env.ADMIN_JWT_SECRET);
-    req.user = payload;
-    next();
-  } catch (e) {
-    return res.status(401).json({ success: false, message: "جلسة غير صالحة، يرجى تسجيل الدخول" });
-  }
-}
-
-function setUserCookie(res, token, remember) {
-  const maxAge = remember ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
-  res.cookie("user_token", token, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    maxAge
-  });
 }
 
 function hashPassword(password) {
