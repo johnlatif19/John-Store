@@ -299,10 +299,11 @@ document.addEventListener('keydown', e => {
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     const res = await fetch('/api/auth/me', { credentials: 'include' });
+
     if (res.status === 401 || res.status === 403) {
-      window.location.href = '/log-in';
       return;
     }
+
     const data = await res.json();
     
     if (data.success && data.user) {
