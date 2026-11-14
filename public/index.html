@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
- <title>Store PUBG - متجر شحن شدات ببجي | JOHN STORE</title>
- <link rel="icon" href="https://i.postimg.cc/x8xtX2KR/john-store.png" type="image/png">
+  <title>Store PUBG - متجر شحن شدات ببجي | JOHN STORE</title>
+  <link rel="icon" href="https://i.postimg.cc/x8xtX2KR/john-store.png" type="image/png">
   <meta name="description" content="متجر تريب لشحن شدات ببجي بأسعار منافسة. شحن مباشر، دعم سريع، وطرق دفع متعددة. جرب الآن!" />
   <meta name="keywords" content="شدات ببجي, شحن PUBG, متجر ببجي, شحن UC, store pubg, uc pubg, uc شدات, pubg uc, uc متجر" />
   <meta name="author" content="JOHN STORE" />
@@ -20,9 +20,44 @@
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="css/index.css">
-
+  
+  <style>
+    /* ستايل شريط التحذير */
+    .under-construction-banner {
+      background-color: #dc2626; /* لون أحمر */
+      color: white;
+      text-align: center;
+      padding: 12px;
+      font-weight: bold;
+      font-size: 1.1rem;
+      position: sticky;
+      top: 0;
+      z-index: 9999;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Cairo', sans-serif;
+    }
+    .under-construction-banner i {
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.2); opacity: 0.7; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+  </style>
 </head>
 <body>
+
+  <!-- شريط التحذير -->
+  <div class="under-construction-banner">
+    <i class="fas fa-exclamation-triangle"></i>
+    <span>الموقع تحت التجربة والإنشاء - برجاء عدم الدفع حالياً</span>
+    <i class="fas fa-exclamation-triangle"></i>
+  </div>
 
   <!-- Background effects -->
   <div class="bg-grid"></div>
