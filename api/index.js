@@ -18,7 +18,7 @@ app.use(cors({
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(express.static(path.resolve(__dirname, "../public")));
+app.use(express.static(path.resolve(__dirname, "../public"), { index: false }));
 
 function requireAdmin(req, res, next) {
   try {
@@ -94,6 +94,13 @@ function requireUserPage(req, res, next) {
 }
 
 app.get("/", (req, res) => {
+  try {
+    const token = req.cookies?.user_token;
+    if (token) {
+      jwt.verify(token, process.env.USER_JWT_SECRET || process.env.ADMIN_JWT_SECRET);
+      return res.redirect("/index");
+    }
+  } catch (e) {}
   res.redirect("/log-in");
 });
 
@@ -135,7 +142,7 @@ app.get("/account", requireUserPage, (req, res) => {
   res.sendFile(path.resolve(__dirname, "../public/account.html"));
 });
 
-app.get("/index", (req, res) => {
+app.get("/index", requireUserPage, (req, res) => {
   res.sendFile(path.resolve(__dirname, "../public/index.html"));
 });
 
@@ -459,7 +466,7 @@ app.post("/api/auth/signup", async (req, res) => {
     return res.status(201).json({
       success: true, message: "تم إنشاء الحساب بنجاح",
       user: { id: ref.id, name: cleanName, email: cleanEmail, baseId: cleanId },
-      redirect: "/"
+      redirect: "/index"
     });
   } catch (err) {
     console.error("Signup error:", err);
@@ -530,7 +537,7 @@ app.post("/api/auth/login", async (req, res) => {
       success: true,
       message: "تم تسجيل الدخول بنجاح",
       user: { id: userDoc.id, name: user.name, email: user.email, baseId: user.baseId },
-      redirect: "/"
+      redirect: "/index"
     });
   } catch (err) {
     console.error("Login error:", err);
