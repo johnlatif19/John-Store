@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>حسابي - JOHN STORE</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="canonical" href="https://john-pubg-store.vercel.app/account" />
   <link rel="icon" href="https://i.postimg.cc/x8xtX2KR/john-store.png" type="image/png">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -27,7 +29,7 @@
         </div>
       </a>
       <div class="header-actions">
-        <a href="/index" class="header-btn"><i class="fas fa-store"></i> المتجر</a>
+        <a href="/" class="header-btn"><i class="fas fa-store"></i> المتجر</a>
         <button class="header-btn" onclick="openEditModal()" style="background: rgba(255,184,0,0.1); border-color: var(--primary); color: var(--primary);"><i class="fas fa-edit"></i> تعديل</button>
         <button class="header-btn danger" onclick="userLogout()"><i class="fas fa-sign-out-alt"></i> خروج</button>
       </div>
@@ -89,13 +91,13 @@
         <h3><i class="fas fa-user-edit"></i> تعديل الحساب</h3>
         <button class="close-edit-btn" onclick="closeEditModal()">&times;</button>
       </div>
-      
+
       <div class="edit-modal-body">
         <div class="edit-field">
           <label>الاسم</label>
           <input type="text" id="editName" placeholder="اسمك" />
         </div>
-        
+
         <div class="edit-field">
           <label>ID الحساب</label>
           <input type="text" id="editId" placeholder="ID اللعبة" />
