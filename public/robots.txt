@@ -1,0 +1,16 @@
+# robots.txt for JOHN STORE
+# https://john-pubg-store.vercel.app
+
+User-agent: *
+Allow: /
+
+Disallow: /account
+Disallow: /login
+Disallow: /dashboard
+
+# ملفات تقنية
+Disallow: /js/
+Disallow: /css/
+
+# Sitemap
+Sitemap: https://john-pubg-store.vercel.app/sitemap.xml
