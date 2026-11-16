@@ -1,234 +1,373 @@
-  :root {
-      --primary: #1a1a2e;
-      --secondary: #ff7a00;
-      --accent: #00b4d8;
-      --dark: #16213e;
-      --light: #f8f9fa;
-      --success: #25D366;
-      --danger: #ff4d4f;
-      --warning: #ffc107;
-      --gray: #6c757d;
-    }
-    
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    
-    body {
-      font-family: 'Tajawal', sans-serif;
-      background-color: #0f0f1a;
-      background-image: radial-gradient(circle at 25% 25%, rgba(22, 33, 62, 0.8) 0%, rgba(10, 10, 20, 1) 100%);
-      color: #fff;
-      line-height: 1.6;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-    
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 20px;
-      width: 100%;
-      flex: 1;
-    }
-    
-    header {
-      background: linear-gradient(135deg, var(--primary), var(--dark));
-      padding: 20px 0;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      text-align: center;
-      border-bottom: 1px solid rgba(255, 122, 0, 0.2);
-    }
-    
-    .logo-container {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 15px;
-    }
-    
-    .logo-container img {
-      width: 60px;
-      height: 60px;
-      border-radius: 15px;
-      object-fit: cover;
-      border: 2px solid var(--secondary);
-      box-shadow: 0 4px 15px rgba(255, 122, 0, 0.3);
-    }
-    
-    .logo-title { font-size: 24px; font-weight: bold; color: var(--secondary); }
-    
-    .payment-container {
-      background: rgba(26, 26, 46, 0.7);
-      backdrop-filter: blur(10px);
-      border-radius: 15px;
-      padding: 30px;
-      margin: 30px auto;
-      max-width: 800px;
-      width: 100%;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-      border: 1px solid rgba(255,255,255,0.1);
-    }
-    
-    .payment-header { text-align: center; margin-bottom: 30px; }
-    .payment-header h2 { font-size: 1.8rem; color: var(--secondary); margin-bottom: 15px; }
-    
-    .payment-info {
-      background: rgba(255, 122, 0, 0.1);
-      padding: 20px;
-      border-radius: 10px;
-      margin-bottom: 30px;
-      border-right: 4px solid var(--secondary);
-    }
-    
-    .info-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
-    .info-label { color: rgba(255,255,255,0.8); }
-    .info-value { font-weight: 700; color: var(--secondary); }
-    
-    .step {
-      display: flex;
-      align-items: flex-start;
-      margin-bottom: 25px;
-      background: rgba(255,255,255,0.05);
-      padding: 15px;
-      border-radius: 10px;
-    }
-    
-    .step-number {
-      background: var(--secondary);
-      color: #000;
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      margin-left: 15px;
-      flex-shrink: 0;
-    }
-    
-    .step-content { flex: 1; }
-    .step-title { font-weight: 700; margin-bottom: 8px; color: #fff; font-size: 1.1rem; }
-    .step-details { color: rgba(255,255,255,0.8); }
-    
-    .method-card {
-      background: rgba(255,255,255,0.08);
-      border-radius: 10px;
-      padding: 15px;
-      margin-bottom: 10px;
-    }
-    
-    .method-number {
-      background: rgba(0,0,0,0.5);
-      padding: 10px;
-      border-radius: 8px;
-      font-family: monospace;
-      font-size: 1rem;
-      color: var(--secondary);
-      text-align: center;
-      margin-top: 10px;
-      direction: ltr;
-    }
-    
-    .file-upload {
-      position: relative;
-      margin: 15px 0;
-    }
-    
-    .file-upload input {
-      position: absolute;
-      opacity: 0;
-      width: 100%;
-      height: 100%;
-      top: 0;
-      left: 0;
-      cursor: pointer;
-    }
-    
-    .file-upload-label {
-      display: block;
-      padding: 20px;
-      background: rgba(255,255,255,0.08);
-      border: 2px dashed rgba(255,255,255,0.3);
-      border-radius: 10px;
-      text-align: center;
-      transition: all 0.3s;
-      cursor: pointer;
-    }
-    
-    .file-upload-label:hover {
-      border-color: var(--secondary);
-      background: rgba(255,255,255,0.12);
-    }
-    
-    .file-upload-label i { font-size: 2rem; margin-bottom: 10px; color: var(--secondary); display: block; }
-    
-    .preview-container {
-      display: none;
-      margin-top: 15px;
-      text-align: center;
-    }
-    
-    .preview-image {
-      max-width: 100%;
-      max-height: 200px;
-      border-radius: 8px;
-      border: 2px solid rgba(255,255,255,0.2);
-    }
-    
-    .form-control {
-      width: 100%;
-      padding: 12px;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 10px;
-      color: #fff;
-      font-family: 'Tajawal', sans-serif;
-      font-size: 1rem;
-    }
-    
-    .form-control:focus {
-      outline: none;
-      border-color: var(--secondary);
-    }
-    
-    .btn {
-      display: inline-block;
-      background: var(--secondary);
-      color: #000;
-      padding: 15px 30px;
-      border-radius: 30px;
-      font-weight: 700;
-      border: none;
-      cursor: pointer;
-      transition: all 0.3s;
-      text-align: center;
-      font-size: 1.1rem;
-      width: 100%;
-      margin-top: 20px;
-    }
-    
-    .btn:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(255, 122, 0, 0.3); }
-    .btn-whatsapp { background: var(--success); color: #fff; text-decoration: none; display: block; }
-    
-    .spinner {
-      display: inline-block;
-      width: 20px;
-      height: 20px;
-      border: 3px solid rgba(0,0,0,0.3);
-      border-radius: 50%;
-      border-top-color: #000;
-      animation: spin 1s ease-in-out infinite;
-    }
-    
-    @keyframes spin { to { transform: rotate(360deg); } }
-    
-    footer {
-      background: var(--primary);
-      padding: 20px 0;
-      text-align: center;
-      margin-top: 40px;
-      border-top: 1px solid rgba(255,255,255,0.1);
-    }
-    
-    .copyright { color: rgba(255,255,255,0.6); font-size: 0.9rem; }
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --primary: #ffb800;
+  --primary-dark: #e0a300;
+  --bg-dark: #0f0f1a;
+  --bg-card: #1a1a2e;
+  --bg-input: #252540;
+  --text: #ffffff;
+  --text-muted: #a0a0b0;
+  --border: #2a2a45;
+  --green: #22c55e;
+  --red: #ef4444;
+  --whatsapp: #25d366;
+}
+
+body {
+  font-family: 'Tajawal', 'Cairo', Arial, sans-serif;
+  background: var(--bg-dark);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  direction: rtl;
+  line-height: 1.6;
+}
+
+.container {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 0 20px;
+  width: 100%;
+}
+
+header {
+  background: var(--bg-card);
+  border-bottom: 2px solid var(--primary);
+  padding: 20px 0;
+  margin-bottom: 40px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-container img {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 2px solid var(--primary);
+  object-fit: cover;
+}
+
+.logo-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: 1px;
+}
+
+main {
+  flex: 1;
+  padding-bottom: 40px;
+}
+
+.payment-container {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 30px;
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.payment-header {
+  text-align: center;
+  padding-bottom: 20px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 25px;
+}
+
+.payment-header h2 {
+  color: var(--primary);
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.payment-info {
+  background: var(--bg-input);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 30px;
+  border: 1px solid var(--border);
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--border);
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.info-value {
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 1rem;
+  word-break: break-all;
+  text-align: left;
+  direction: ltr;
+  max-width: 60%;
+}
+
+.step {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 25px;
+  background: var(--bg-input);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  transition: all 0.3s ease;
+}
+
+.step:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+.step-number {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  background: var(--primary);
+  color: #000;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+
+.step-content {
+  flex: 1;
+}
+
+.step-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+
+.step-details {
+  color: var(--text-muted);
+}
+
+.method-card {
+  background: var(--bg-card);
+  border: 1px solid var(--primary);
+  border-radius: 10px;
+  padding: 15px;
+  text-align: center;
+}
+
+.method-card i {
+  color: var(--primary);
+  margin-left: 8px;
+  font-size: 1.1rem;
+}
+
+.method-number {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: 2px;
+  margin-top: 10px;
+  direction: ltr;
+  font-family: 'Courier New', monospace;
+}
+
+.form-control {
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 15px;
+  color: var(--text);
+  font-size: 1rem;
+  font-family: inherit;
+  transition: all 0.3s ease;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(255, 184, 0, 0.15);
+}
+
+.form-control::placeholder {
+  color: var(--text-muted);
+}
+
+.file-upload {
+  position: relative;
+}
+
+.file-upload input[type="file"] {
+  display: none;
+}
+
+.file-upload-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--bg-card);
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 30px 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: var(--text-muted);
+}
+
+.file-upload-label:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: rgba(255, 184, 0, 0.05);
+}
+
+.file-upload-label i {
+  font-size: 2rem;
+}
+
+.preview-container {
+  display: none;
+  margin-top: 15px;
+  text-align: center;
+}
+
+.preview-image {
+  max-width: 100%;
+  max-height: 250px;
+  border-radius: 10px;
+  border: 2px solid var(--primary);
+}
+
+.btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--primary);
+  color: #000;
+  border: none;
+  border-radius: 10px;
+  padding: 15px 20px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(255, 184, 0, 0.3);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-whatsapp {
+  background: var(--whatsapp);
+  color: #fff;
+}
+
+.btn-whatsapp:hover:not(:disabled) {
+  background: #1ebe57;
+  box-shadow: 0 8px 20px rgba(37, 211, 102, 0.3);
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+footer {
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  padding: 20px 0;
+  margin-top: auto;
+}
+
+.copyright {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 600px) {
+  .payment-container {
+    padding: 20px 15px;
+  }
+
+  .payment-header h2 {
+    font-size: 1.2rem;
+  }
+
+  .step {
+    padding: 15px;
+    gap: 10px;
+  }
+
+  .step-number {
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+  }
+
+  .step-title {
+    font-size: 0.95rem;
+  }
+
+  .method-number {
+    font-size: 1.3rem;
+  }
+
+  .info-value {
+    max-width: 55%;
+    font-size: 0.9rem;
+  }
+
+  .logo-title {
+    font-size: 1.1rem;
+  }
+}
