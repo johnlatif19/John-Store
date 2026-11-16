@@ -186,30 +186,12 @@ document.getElementById('orderForm').addEventListener('submit', async (e) => {
     
     if (result.success) {
       currentOrderId = result.id;
-      btn.innerHTML = '<span class="spinner"></span> جاري تحويلك لبوابة الدفع...';
-      
-      const invoiceRes = await fetch('/api/create-invoice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId: currentOrderId,
-          description: `طلب شحن ${selectedUC ? selectedUC.dataset.value + ' UC' : selectedBundle.dataset.value} - اللاعب: ${playerId}`,
-          amount: totalAmount,
-          customerPhone: email,
-          customerName: name
-        })
-      });
-      
-      const invoiceData = await invoiceRes.json();
-      
-      if (invoiceData.success && invoiceData.checkout_url) {
-        window.location.href = invoiceData.checkout_url;
-      } else {
-        throw new Error(invoiceData.message || 'فشل إنشاء رابط الدفع');
-      }
-    } else {
-      throw new Error(result.message || 'خطأ غير معروف');
+      btn.innerHTML = '<span class="spinner"></span> جاري تحويلك لصفحة الدفع...';
+      window.location.href = `/pay?orderId=${encodeURIComponent(currentOrderId)}`;
+      return;
     }
+    
+    throw new Error(result.message || 'خطأ غير معروف');
   } catch (err) {
     showToast('خطأ', err.message || 'فشل إرسال الطلب', 'error');
     btn.disabled = false;
