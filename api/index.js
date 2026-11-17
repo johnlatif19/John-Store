@@ -297,16 +297,16 @@ function buildWelcomeEmailHtml(name, accountUrl) {
   return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head><meta charset="UTF-8"></head>
-<body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; padding: 20px;">
+<body style="font-family: Arial, sans-serif; color: #000; background-color: #fff; padding: 20px;">
   <h2>مرحبًا ${safeName}،</h2>
-  <p>تم إنشاء حسابك بنجاح على <strong>John Store</strong>.</p>
+  <p>تم إنشاء حسابك بنجاح على John Store.</p>
   <p><strong>اسم المستخدم:</strong> ${safeName}</p>
   <p>يمكنك الوصول إلى منطقة حسابك لعرض الطلبات، وتغيير كلمة المرور الخاصة بك والمزيد عبر الرابط التالي:</p>
   <p><a href="${accountUrl}">${accountUrl}</a></p>
   <br>
   <p>Welcome To John Store.</p>
-  <hr style="border: none; border-top: 1px solid #ccc; margin: 20px 0;">
-  <p style="font-size: 12px; color: #888;">هذا البريد إلكتروني آلي، يرجى عدم الرد عليه.<br>© ${new Date().getFullYear()} John Store - جميع الحقوق محفوظة.</p>
+  <p>---</p>
+  <p style="font-size: 12px; color: #888;">هذا البريد إلكتروني آلي، يرجى عدم الرد عليه.<br>© ${new Date().getFullYear()} John Store</p>
 </body>
 </html>`;
 }
@@ -319,13 +319,13 @@ function buildOtpEmailHtml(name, otp) {
   return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head><meta charset="UTF-8"></head>
-<body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; padding: 20px;">
+<body style="font-family: Arial, sans-serif; color: #000; background-color: #fff; padding: 20px;">
   <h2>مرحبًا ${safeName}،</h2>
   <p>استلمنا طلبًا لإعادة تعيين كلمة المرور الخاصة بحسابك. استخدم الكود التالي لإكمال العملية:</p>
   <h1 style="font-size: 32px; color: #000; letter-spacing: 5px; text-align: center; margin: 20px 0;">${otp}</h1>
   <p>الكود صالح لمدة <strong>دقيقتين (120 ثانية)</strong> فقط.</p>
   <p>إذا لم تطلب إعادة التعيين، تجاهل هذا الإيميل — حسابك آمن.</p>
-  <hr style="border: none; border-top: 1px solid #ccc; margin: 20px 0;">
+  <p>---</p>
   <p style="font-size: 12px; color: #888;">هذا البريد آلي، يرجى عدم الرد عليه.<br>© ${new Date().getFullYear()} John Store</p>
 </body>
 </html>`;
