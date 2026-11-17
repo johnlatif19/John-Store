@@ -185,7 +185,7 @@ function firestore() {
 
 function nowISO() { return new Date().toISOString(); }
 
-/* ================= MAILER (معدل) ================= */
+/* ================= MAILER ================= */
 
 const transporter = nodemailer.createTransport({
   service: process.env.SMTP_SERVICE || "gmail",
@@ -205,7 +205,6 @@ function mailHeaders(extra = {}) {
     "X-Mailer": "JohnStore-Mailer/1.0",
     "X-Priority": "3",
     "List-Unsubscribe": `<mailto:${from}?subject=unsubscribe>`,
-    "Precedence": "bulk",
     ...extra
   };
 }
@@ -254,11 +253,6 @@ function verifyPassword(password, stored) {
   });
 }
 
-function generateBaseId() {
-  const num = crypto.randomInt(10000000, 99999999);
-  return `JS-${num}`;
-}
-
 function getClientIp(req) {
   const fwd = req.headers["x-forwarded-for"];
   if (typeof fwd === "string" && fwd.length) return fwd.split(",")[0].trim();
@@ -293,47 +287,49 @@ async function uploadScreenshotToCloudinary(file) {
   });
 }
 
+/* ================= EMAIL TEMPLATES (SIMPLIFIED) ================= */
+
 function buildWelcomeEmailHtml(name, accountUrl) {
   const safeName = String(name || "").replace(/[<>&"]/g, (c) => ({
     "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;"
   }[c]));
+  
   return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
-<head><meta charset="UTF-8"><title>مرحبًا بك في John Store</title></head>
-<body style="margin:0;padding:0;background:#f5f7fb;font-family:'Cairo','Tajawal',Arial,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f7fb;padding:40px 20px;">
-    <tr><td align="center">
-      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e0e0e0;box-shadow:0 4px 15px rgba(0,0,0,0.05);">
-        <tr>
-          <td align="center" style="background-color:#1a1a2e;padding:35px 20px;">
-            <img src="cid:johnstore-logo" alt="John Store" width="80" height="80" style="border-radius:50%;border:3px solid #ffb800;display:block;margin-bottom:15px;">
-            <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:bold;letter-spacing:1px;">John <span style="color:#ffb800;">Store</span></h1>
-            <p style="margin:5px 0 0 0;color:#a0a0b0;font-size:14px;">متجر شحن شدات ببجي</p>
-          </td>
-        </tr>
-        <tr><td style="padding:30px 20px;">
-          <h2 style="color:#333333;margin-top:0;font-size:20px;border-bottom:2px solid #ffb800;padding-bottom:10px;display:inline-block;">مرحبًا ${safeName}،</h2>
-          <p style="color:#444444;line-height:1.8;font-size:16px;margin-top:20px;">تم إنشاء حسابك بنجاح على <strong style="color:#ff7a00;">John Store</strong>.</p>
-          <p style="color:#444444;line-height:1.8;font-size:16px;"><strong>اسم المستخدم:</strong> ${safeName}</p>
-          <p style="color:#444444;line-height:1.8;font-size:16px;">يمكنك الوصول إلى منطقة حسابك لعرض الطلبات، وتغيير كلمة المرور الخاصة بك والمزيد عبر الرابط أدناه:</p>
-          <table role="presentation" cellpadding="0" cellspacing="0" style="margin:30px auto;">
-            <tr><td align="center" style="border-radius:8px;background:#ffb800;">
-              <a href="${accountUrl}" target="_blank" style="display:inline-block;padding:14px 34px;color:#000;text-decoration:none;font-weight:bold;font-size:16px;border-radius:8px;">لوحة حسابي</a>
-            </td></tr>
-          </table>
-          <p style="color:#888888;font-size:14px;text-align:center;margin-top:30px;">Welcome To <strong style="color:#ff7a00;">John Store</strong>.</p>
-        </td></tr>
-        <tr><td align="center" style="background-color:#f1f3f5;padding:20px;border-top:1px solid #e0e0e0;">
-          <p style="margin:0;color:#888888;font-size:13px;line-height:1.6;">هذا البريد إلكتروني آلي، يرجى عدم الرد عليه.<br>© ${new Date().getFullYear()} John Store - جميع الحقوق محفوظة.</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
+<head><meta charset="UTF-8"></head>
+<body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; padding: 20px;">
+  <h2>مرحبًا ${safeName}،</h2>
+  <p>تم إنشاء حسابك بنجاح على <strong>John Store</strong>.</p>
+  <p><strong>اسم المستخدم:</strong> ${safeName}</p>
+  <p>يمكنك الوصول إلى منطقة حسابك لعرض الطلبات، وتغيير كلمة المرور الخاصة بك والمزيد عبر الرابط التالي:</p>
+  <p><a href="${accountUrl}">${accountUrl}</a></p>
+  <br>
+  <p>Welcome To John Store.</p>
+  <hr style="border: none; border-top: 1px solid #ccc; margin: 20px 0;">
+  <p style="font-size: 12px; color: #888;">هذا البريد إلكتروني آلي، يرجى عدم الرد عليه.<br>© ${new Date().getFullYear()} John Store - جميع الحقوق محفوظة.</p>
 </body>
 </html>`;
 }
 
-/* ================= EMAIL SENDERS (معدل) ================= */
+function buildOtpEmailHtml(name, otp) {
+  const safeName = String(name || "عميلنا").replace(/[<>&"]/g, (c) => ({
+    "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;"
+  }[c]));
+  
+  return `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"></head>
+<body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; padding: 20px;">
+  <h2>مرحبًا ${safeName}،</h2>
+  <p>استلمنا طلبًا لإعادة تعيين كلمة المرور الخاصة بحسابك. استخدم الكود التالي لإكمال العملية:</p>
+  <h1 style="font-size: 32px; color: #000; letter-spacing: 5px; text-align: center; margin: 20px 0;">${otp}</h1>
+  <p>الكود صالح لمدة <strong>دقيقتين (120 ثانية)</strong> فقط.</p>
+  <p>إذا لم تطلب إعادة التعيين، تجاهل هذا الإيميل — حسابك آمن.</p>
+  <hr style="border: none; border-top: 1px solid #ccc; margin: 20px 0;">
+  <p style="font-size: 12px; color: #888;">هذا البريد آلي، يرجى عدم الرد عليه.<br>© ${new Date().getFullYear()} John Store</p>
+</body>
+</html>`;
+}
 
 async function sendWelcomeEmail(name, email) {
   console.log("🔄 محاولة إرسال إيميل ترحيبي إلى:", email);
@@ -351,11 +347,6 @@ async function sendWelcomeEmail(name, email) {
       to: email,
       subject: "مرحبًا بك في John Store — تم إنشاء حسابك",
       headers: mailHeaders(),
-      attachments: [{
-        filename: 'john-store.png',
-        path: 'https://i.postimg.cc/x8xtX2KR/john-store.png',
-        cid: 'johnstore-logo'
-      }],
       html: buildWelcomeEmailHtml(name, accountUrl),
       text: `مرحبًا ${name},\n\nتم إنشاء حسابك على John Store.\nاسم المستخدم: ${name}\n\nيمكنك الوصول إلى منطقة حسابك عبر الرابط:\n${accountUrl}\n\nWelcome To John Store.\n\nهذا البريد آلي، يرجى عدم الرد عليه.`
     });
@@ -363,41 +354,6 @@ async function sendWelcomeEmail(name, email) {
   } catch (e) {
     console.error("Welcome email failed:", e?.message || e);
   }
-}
-
-function buildOtpEmailHtml(name, otp) {
-  const safeName = String(name || "عميلنا").replace(/[<>&"]/g, (c) => ({
-    "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;"
-  }[c]));
-  return `<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head><meta charset="UTF-8"><title>كود استعادة كلمة المرور</title></head>
-<body style="margin:0;padding:0;background:#f5f7fb;font-family:'Cairo','Tajawal',Arial,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f7fb;padding:40px 20px;">
-    <tr><td align="center">
-      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e0e0e0;">
-        <tr><td align="center" style="background-color:#1a1a2e;padding:30px 20px;">
-          <img src="cid:johnstore-logo" alt="John Store" width="70" height="70" style="border-radius:50%;border:3px solid #ffb800;display:block;margin:0 auto 12px;">
-          <h1 style="margin:0;color:#fff;font-size:22px;">John <span style="color:#ffb800;">Store</span></h1>
-          <p style="margin:5px 0 0;color:#a0a0b0;font-size:13px;">استعادة كلمة المرور</p>
-        </td></tr>
-        <tr><td style="padding:30px 20px;">
-          <h2 style="color:#333;margin-top:0;font-size:19px;">مرحبًا ${safeName}،</h2>
-          <p style="color:#444;line-height:1.8;font-size:15px;">استلمنا طلبًا لإعادة تعيين كلمة المرور الخاصة بحسابك. استخدم الكود التالي لإكمال العملية:</p>
-          <div style="text-align:center;margin:28px 0;">
-            <div style="display:inline-block;background:#0a0e18;color:#ffb800;font-size:34px;font-weight:900;letter-spacing:10px;padding:18px 30px;border-radius:12px;font-family:monospace;">${otp}</div>
-          </div>
-          <p style="color:#444;line-height:1.8;font-size:15px;text-align:center;">الكود صالح لمدة <strong>دقيقتين (120 ثانية)</strong> فقط.</p>
-          <p style="color:#888;font-size:13px;text-align:center;margin-top:26px;">إذا لم تطلب إعادة التعيين، تجاهل هذا الإيميل — حسابك آمن.</p>
-        </td></tr>
-        <tr><td align="center" style="background:#f1f3f5;padding:18px;border-top:1px solid #e0e0e0;">
-          <p style="margin:0;color:#888;font-size:12px;">هذا البريد آلي، يرجى عدم الرد عليه.<br>© ${new Date().getFullYear()} John Store</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
 }
 
 async function sendOtpEmail(name, email, otp) {
@@ -409,11 +365,6 @@ async function sendOtpEmail(name, email, otp) {
     to: email,
     subject: `كود استعادة كلمة المرور: ${otp} — John Store`,
     headers: mailHeaders({ "X-Priority": "1" }),
-    attachments: [{
-      filename: "john-store.png",
-      path: "https://i.postimg.cc/x8xtX2KR/john-store.png",
-      cid: "johnstore-logo"
-    }],
     html: buildOtpEmailHtml(name, otp),
     text: `مرحبًا ${name || ""},\n\nكود استعادة كلمة المرور الخاص بك هو: ${otp}\n\nالكود صالح لمدة دقيقتين فقط.\nإذا لم تطلب إعادة التعيين، تجاهل هذا الإيميل.\n\nJohn Store`
   });
@@ -1192,20 +1143,13 @@ app.post("/api/admin/send-message", requireAdmin, async (req, res) => {
         to: email,
         subject: subject,
         headers: mailHeaders(),
-        attachments: [{
-          filename: 'john-store.png',
-          path: 'https://i.postimg.cc/x8xtX2KR/john-store.png',
-          cid: 'johnstore-logo'
-        }],
         html: `
           <div style="font-family:'Cairo','Tajawal',Arial,sans-serif;max-width:600px;margin:0 auto;background-color:#fff;border:1px solid #e0e0e0;border-radius:12px;overflow:hidden;" dir="rtl">
-            <div style="background-color:#1a1a2e;padding:35px 20px;text-align:center;">
-              <img src="cid:johnstore-logo" alt="John Store" style="width:80px;height:80px;border-radius:50%;border:3px solid #ffb800;display:inline-block;margin-bottom:15px;">
-              <h1 style="color:#fff;margin:0;font-size:24px;letter-spacing:1px;">John <span style="color:#ffb800;">Store</span></h1>
-              <p style="color:#a0a0b0;margin:5px 0 0 0;font-size:14px;">متجر شحن شدات ببجي</p>
+            <div style="background-color:#f8f9fa;padding:20px;text-align:center;border-bottom:2px solid #ffb800;">
+              <h1 style="color:#1a1a2e;margin:0;font-size:24px;">John <span style="color:#ffb800;">Store</span></h1>
             </div>
             <div style="padding:30px 20px;">
-              <h2 style="color:#333;margin-top:0;font-size:20px;border-bottom:2px solid #ffb800;padding-bottom:10px;display:inline-block;">${subject}</h2>
+              <h2 style="color:#333;margin-top:0;font-size:20px;">${subject}</h2>
               <div style="background-color:#f8f9fa;padding:20px;border-radius:8px;margin:20px 0;border-right:4px solid #ffb800;">
                 <p style="color:#444;line-height:1.8;margin:0;font-size:16px;white-space:pre-wrap;">${String(message).replace(/\n/g, "<br>").replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
               </div>
