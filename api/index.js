@@ -138,6 +138,10 @@ app.get("/log-in", (req, res) => {
   res.sendFile(path.resolve(__dirname, "../public/log-in.html"));
 });
 
+app.get("/forgot-password", (req, res) => {
+  res.sendFile(path.resolve(__dirname, "../public/forgot-password.html"));
+});
+
 app.get("/account", requireUserPage, (req, res) => {
   res.sendFile(path.resolve(__dirname, "../public/account.html"));
 });
@@ -403,6 +407,67 @@ async function sendWelcomeEmail(name, email) {
   }
 }
 
+function buildOtpEmailHtml(name, otp) {
+  const safeName = String(name || "عميلنا").replace(/[<>&"]/g, (c) => ({
+    "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;"
+  }[c]));
+  return `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><title>كود استعادة كلمة المرور</title></head>
+<body style="margin:0;padding:0;background:#f5f7fb;font-family:'Cairo','Tajawal',Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f7fb;padding:40px 20px;">
+    <tr><td align="center">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e0e0e0;">
+        <tr><td align="center" style="background-color:#1a1a2e;padding:30px 20px;">
+          <img src="cid:johnstore-logo" alt="John Store" width="70" height="70" style="border-radius:50%;border:3px solid #ffb800;display:block;margin:0 auto 12px;">
+          <h1 style="margin:0;color:#fff;font-size:22px;">John <span style="color:#ffb800;">Store</span></h1>
+          <p style="margin:5px 0 0;color:#a0a0b0;font-size:13px;">استعادة كلمة المرور</p>
+        </td></tr>
+        <tr><td style="padding:30px 20px;">
+          <h2 style="color:#333;margin-top:0;font-size:19px;">مرحبًا ${safeName}،</h2>
+          <p style="color:#444;line-height:1.8;font-size:15px;">
+            استلمنا طلبًا لإعادة تعيين كلمة المرور الخاصة بحسابك. استخدم الكود التالي لإكمال العملية:
+          </p>
+          <div style="text-align:center;margin:28px 0;">
+            <div style="display:inline-block;background:#0a0e18;color:#ffb800;font-size:34px;font-weight:900;letter-spacing:10px;padding:18px 30px;border-radius:12px;font-family:monospace;">
+              ${otp}
+            </div>
+          </div>
+          <p style="color:#444;line-height:1.8;font-size:15px;text-align:center;">
+            الكود صالح لمدة <strong>دقيقتين (120 ثانية)</strong> فقط.
+          </p>
+          <p style="color:#888;font-size:13px;text-align:center;margin-top:26px;">
+            إذا لم تطلب إعادة التعيين، تجاهل هذا الإيميل — حسابك آمن.
+          </p>
+        </td></tr>
+        <tr><td align="center" style="background:#f1f3f5;padding:18px;border-top:1px solid #e0e0e0;">
+          <p style="margin:0;color:#888;font-size:12px;">هذا البريد آلي، يرجى عدم الرد عليه.<br>© ${new Date().getFullYear()} John Store</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+async function sendOtpEmail(name, email, otp) {
+  const from = process.env.SMTP_USER || process.env.EMAIL_USER;
+  if (!from) throw new Error("SMTP not configured");
+  const info = await transporter.sendMail({
+    from: `"John Store" <${from}>`,
+    to: email,
+    subject: "كود استعادة كلمة المرور — John Store",
+    attachments: [{
+      filename: "john-store.png",
+      path: "https://i.postimg.cc/x8xtX2KR/john-store.png",
+      cid: "johnstore-logo"
+    }],
+    html: buildOtpEmailHtml(name, otp),
+    text: `مرحبًا ${name || ""},\n\nكود استعادة كلمة المرور: ${otp}\n\nالكود صالح لمدة دقيقتين فقط.\n\nJohn Store`
+  });
+  return info;
+}
+
 app.get("/api/health", (req, res) => {
   res.json({ success: true, time: nowISO() });
 });
@@ -555,6 +620,156 @@ app.post("/api/auth/login", async (req, res) => {
   } catch (err) {
     console.error("Login error:", err);
     return res.status(500).json({ success: false, message: "حدث خطأ أثناء تسجيل الدخول" });
+  }
+});
+
+const OTP_TTL_MS = 120 * 1000;
+
+const otpRequestLimit = new Map();
+const OTP_RATE_WINDOW = 60 * 1000;
+const OTP_MAX_PER_WINDOW = 3;
+
+function canRequestOtp(ip) {
+  const now = Date.now();
+  const arr = (otpRequestLimit.get(ip) || []).filter(t => now - t < OTP_RATE_WINDOW);
+  if (arr.length >= OTP_MAX_PER_WINDOW) return false;
+  arr.push(now);
+  otpRequestLimit.set(ip, arr);
+  return true;
+}
+
+app.post("/api/auth/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email) return res.status(400).json({ success: false, message: "البريد الإلكتروني مطلوب" });
+
+    const cleanEmail = String(email).trim().toLowerCase();
+    const ip = getClientIp(req);
+
+    if (!canRequestOtp(ip)) {
+      return res.status(429).json({ success: false, message: "طلبات كثيرة، حاول بعد دقيقة" });
+    }
+
+    const usersCol = firestore().collection("users");
+    const snap = await usersCol.where("email", "==", cleanEmail).limit(1).get();
+
+    if (snap.empty) {
+      return res.json({ success: true, message: "لو البريد مسجل، هيوصلك كود على إيميلك" });
+    }
+
+    const userDoc = snap.docs[0];
+    const user = userDoc.data();
+
+    const old = await firestore().collection("password_resets")
+      .where("email", "==", cleanEmail)
+      .where("used", "==", false)
+      .get();
+    const batch = firestore().batch();
+    old.docs.forEach(d => batch.update(d.ref, { used: true, invalidatedAt: admin.firestore.FieldValue.serverTimestamp() }));
+
+    const otp = String(crypto.randomInt(100000, 999999));
+    const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+    const expiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + OTP_TTL_MS);
+
+    const ref = firestore().collection("password_resets").doc();
+    batch.set(ref, {
+      email: cleanEmail,
+      userId: userDoc.id,
+      otpHash,
+      used: false,
+      attempts: 0,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      expiresAt
+    });
+    await batch.commit();
+
+    try {
+      await sendOtpEmail(user.name, cleanEmail, otp);
+    } catch (mailErr) {
+      console.error("OTP email failed:", mailErr?.message || mailErr);
+      return res.status(500).json({ success: false, message: "فشل إرسال الكود، حاول لاحقًا" });
+    }
+
+    await firestore().collection("login_logs").add({
+      userId: userDoc.id, name: user.name || null, email: cleanEmail,
+      event: "forgot_password_request", success: true,
+      ip, userAgent: req.headers["user-agent"] || null,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    return res.json({
+      success: true,
+      message: "تم إرسال الكود إلى بريدك الإلكتروني",
+      resetToken: ref.id,
+      expiresIn: 120
+    });
+  } catch (err) {
+    console.error("forgot-password error:", err);
+    return res.status(500).json({ success: false, message: "حدث خطأ، حاول لاحقًا" });
+  }
+});
+
+app.post("/api/auth/reset-password", async (req, res) => {
+  try {
+    const { resetToken, otp, newPassword, confirmPassword } = req.body || {};
+    if (!resetToken || !otp || !newPassword || !confirmPassword) {
+      return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة" });
+    }
+    if (String(newPassword).length < 8) {
+      return res.status(400).json({ success: false, message: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" });
+    }
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ success: false, message: "كلمتا المرور غير متطابقتين" });
+    }
+
+    const ref = firestore().collection("password_resets").doc(String(resetToken));
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(400).json({ success: false, message: "طلب غير صالح" });
+
+    const data = doc.data();
+    if (data.used) return res.status(400).json({ success: false, message: "تم استخدام هذا الكود بالفعل" });
+
+    const expiresAtMs = data.expiresAt?.toMillis ? data.expiresAt.toMillis() : 0;
+    if (!expiresAtMs || Date.now() > expiresAtMs) {
+      await ref.update({ used: true });
+      return res.status(400).json({ success: false, message: "انتهت صلاحية الكود، اطلب كودًا جديدًا" });
+    }
+
+    const otpHash = crypto.createHash("sha256").update(String(otp).trim()).digest("hex");
+    if (otpHash !== data.otpHash) {
+      const attempts = (data.attempts || 0) + 1;
+      if (attempts >= 5) {
+        await ref.update({ used: true, attempts });
+        return res.status(400).json({ success: false, message: "محاولات كثيرة خاطئة، اطلب كودًا جديدًا" });
+      }
+      await ref.update({ attempts });
+      return res.status(400).json({ success: false, message: "الكود غير صحيح" });
+    }
+
+    const userRef = firestore().collection("users").doc(data.userId);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) return res.status(404).json({ success: false, message: "المستخدم غير موجود" });
+
+    const passwordHash = await hashPassword(String(newPassword));
+    await userRef.update({
+      passwordHash,
+      passwordChangedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    await ref.update({ used: true, usedAt: admin.firestore.FieldValue.serverTimestamp() });
+
+    await firestore().collection("login_logs").add({
+      userId: data.userId, name: userDoc.data().name || null, email: data.email,
+      event: "password_reset", success: true,
+      ip: getClientIp(req), userAgent: req.headers["user-agent"] || null,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    res.clearCookie("user_token");
+
+    return res.json({ success: true, message: "تم تغيير كلمة المرور بنجاح", redirect: "/log-in" });
+  } catch (err) {
+    console.error("reset-password error:", err);
+    return res.status(500).json({ success: false, message: "حدث خطأ، حاول لاحقًا" });
   }
 });
 
