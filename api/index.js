@@ -1105,7 +1105,7 @@ app.post("/api/admin/reply-inquiry", requireAdmin, async (req, res) => {
       to: email,
       subject: "رد على استفسارك — John Store",
       headers: mailHeaders(),
-      html: `<div dir="rtl"><h2>شكراً لتواصلك معنا</h2><p><strong>استفسارك:</strong></p><p>${message}</p><h3>رد الفريق:</h3><p>${reply}</p><p>مع تحيات فريق الدعم</p></div>`,
+      html: `<div dir="rtl"><h2>شكراً لتواصلك معنا</h2><p><strong>استفسارك:</strong></p><p>${String(message).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, "<br>")}</p><h3>رد الفريق:</h3><p>${String(reply).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, "<br>")}</p><p>مع تحيات فريق الدعم</p></div>`,
       text: `شكراً لتواصلك معنا\n\nاستفسارك:\n${message}\n\nرد الفريق:\n${reply}\n\nمع تحيات فريق دعم John Store`
     });
     await firestore().collection("inquiries").doc(inquiryId).update({ status: "تم الرد" });
@@ -1151,7 +1151,7 @@ app.post("/api/admin/send-message", requireAdmin, async (req, res) => {
             <div style="padding:30px 20px;">
               <h2 style="color:#333;margin-top:0;font-size:20px;">${subject}</h2>
               <div style="background-color:#f8f9fa;padding:20px;border-radius:8px;margin:20px 0;border-right:4px solid #ffb800;">
-                <p style="color:#444;line-height:1.8;margin:0;font-size:16px;white-space:pre-wrap;">${String(message).replace(/\n/g, "<br>").replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+                <p style="color:#444;line-height:1.8;margin:0;font-size:16px;white-space:pre-wrap;">${String(message).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, "<br>")}</p>
               </div>
             </div>
             <div style="background-color:#f1f3f5;padding:20px;text-align:center;border-top:1px solid #e0e0e0;">
