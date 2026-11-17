@@ -338,7 +338,7 @@ async function sendWelcomeEmail(name, email) {
     console.error("Welcome email skipped: missing SMTP_USER/EMAIL_USER");
     return;
   }
-  const baseUrl = (process.env.APP_BASE_URL || "https://trip-store.vercel.app").replace(/\/+$/, "");
+  const baseUrl = (process.env.APP_BASE_URL || "https://john-pubg-store.vercel.app").replace(/\/+$/, "");
   const accountUrl = `${baseUrl}/account`;
   try {
     const info = await transporter.sendMail({
